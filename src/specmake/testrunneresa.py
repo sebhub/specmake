@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 """ Provides a test runner using the ESA run tests service.  """
 
-# Copyright (C) 2023 embedded brains GmbH & Co. KG
+# Copyright (C) 2023, 2026 embedded brains GmbH & Co. KG
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,7 +31,6 @@ import math
 from pathlib import Path
 import socket
 import time
-from typing import Dict, List, Tuple
 import yaml
 
 from specware import run_command
@@ -55,8 +54,9 @@ class ESATestRunner(TestRunner):
 
     def describe(self) -> str:
         return f"""This test procedure requests the `ESA run tests service
-<https://gitrepos.estec.esa.int/ttsiodras/RemoteExecutionOfTestBinaries>`__ to
-run the test programs for the ``{self.component['bsp'].upper()}`` target
+<https://gitlab.esa.int/flight-software/fsw-boards-server/\
+FSWBoardsServerRemoteExecution_Binaries.git>`__
+to run the test programs for the ``{self.component['bsp'].upper()}`` target
 board."""
 
     def _create_branch(self, working_directory: Path,
@@ -76,7 +76,7 @@ board."""
         return branch
 
     def _copy_and_prepare_executables(self, working_directory: Path,
-                                      executables: List[Executable]) -> None:
+                                      executables: list[Executable]) -> None:
         """
         Copy, strip, and compress (bzip2) the executables.
 
@@ -99,7 +99,7 @@ board."""
                 dst.write(data)
 
     def _write_request_file(self, working_directory: Path,
-                            executables: List[Executable]) -> Tuple[str, int]:
+                            executables: list[Executable]) -> tuple[str, int]:
         """
         Write the request file to run the prepared executables.
 
@@ -108,7 +108,7 @@ board."""
         request_file = working_directory / "request.yaml"
         overall_timeout = 0
         with request_file.open("w", encoding="utf-8") as dst:
-            jobs: List[Dict[str, Dict[str, int]]] = []
+            jobs: list[dict[str, dict[str, int]]] = []
             max_timeout = 0
             for executable in executables:
                 timeout = int(math.ceil(executable.timeout))
@@ -148,7 +148,7 @@ board."""
             if status != 0:
                 logging.warning("%s: fetch from remote repository failed",
                                 self.uid)
-            stdout: List[str] = []
+            stdout: list[str] = []
             status = run_command(
                 ["git", "log", f"HEAD..origin/{branch}", "--oneline"],
                 stdout=stdout,
@@ -158,9 +158,9 @@ board."""
                 return
 
     def _get_reports(self, working_directory: Path,
-                     executables: List[Executable]) -> List[Report]:
+                     executables: list[Executable]) -> list[Report]:
         """ Get the reports from the result text file of each executable.  """
-        reports: List[Report] = []
+        reports: list[Report] = []
         for executable in executables:
             result_file = f"{Path(executable.path).name}.bz2.result.txt"
             result_path = working_directory / result_file
@@ -179,7 +179,7 @@ board."""
             reports.append(report)
         return reports
 
-    def run_tests(self, executables: List[Executable]) -> List[Report]:
+    def run_tests(self, executables: list[Executable]) -> list[Report]:
         super().run_tests(executables)
         repository = self.input("repository")
         assert isinstance(repository, RepositoryState)
