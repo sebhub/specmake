@@ -226,7 +226,12 @@ class _TestContext:
 :file:`{executable}`
 executable.  The executable file had an SHA512 digest of
 {base64_to_hex_text(report['executable-sha512'])}.""")
-        self.content.gap = False
+        error = report.get("error")
+        if error:
+            with self.content.directive("error", value="Test runner error"):
+                self.content.add(error)
+        else:
+            self.content.gap = False
 
     def output_line_ref(self, line: int | str) -> str:
         """ Gets the output line reference for the line. """

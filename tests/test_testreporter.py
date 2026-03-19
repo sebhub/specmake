@@ -541,6 +541,11 @@ This report was produced by the
 :file:`tmfine01.exe`
 executable.  The executable file had an SHA512 digest of
 4​b​2​3​b​8​c​8​8​d​5​e​5​3​6​b​9​6​c​2​1​b​9​f​7​e​3​b​b​8​7​1​c​a​b​8​3​3​f​8​a​f​7​8​4​3​0​d​1​c​e​c​f​b​e​7​f​b​3​4​b​1​f​4​8​9​2​3​1​d​7​9​7​0​b​a​6​6​4​6​0​9​7​f​5​d​8​6​f​4​c​5​e​f​c​d​3​2​7​4​3​1​9​c​3​4​a​b​6​1​1​4​9​1​6​f​7​e​7​b​f​f​9​9​8​7​2​8.
+
+.. error:: Test runner error
+
+    the error message
+
 There is a valid begin of test message at line :ref:`3
 <a-build-config-key-build-testsuites-tmtests-tmfine01Output0>`.
 There is a valid end of test message at line :ref:`122

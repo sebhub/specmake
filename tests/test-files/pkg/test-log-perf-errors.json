@@ -6,6 +6,7 @@
       "command-line": [],
       "data-ranges": [],
       "duration": 63.04455539199989,
+      "error": "the error message",
       "executable": "tmfine01.exe",
       "executable-sha512": "SyO4yI1eU2uWwhuffju4ccq4M_iveEMNHOz75_s0sfSJIx15cLpmRgl_XYb0xe_NMnQxnDSrYRSRb357_5mHKA==",
       "execution-duration-in-seconds": 48.17338562011719,
