@@ -181,7 +181,8 @@ board."""
 
     def run_tests(self, executables: list[Executable]) -> list[Report]:
         super().run_tests(executables)
-        repository = self.input("repository")
+        repository = self.director[self.item.parent(
+            "weak-package-build-dependency").uid]
         assert isinstance(repository, RepositoryState)
         working_directory = Path(repository.directory)
         branch = self._create_branch(working_directory, repository)
