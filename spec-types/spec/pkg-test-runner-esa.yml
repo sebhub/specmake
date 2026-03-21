@@ -1,6 +1,6 @@
 SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
-- Copyright (C) 2023 embedded brains GmbH & Co. KG
+- Copyright (C) 2023, 2026 embedded brains GmbH & Co. KG
 enabled-by: true
 links:
 - role: spec-member
@@ -14,10 +14,28 @@ spec-example: null
 spec-info:
   dict:
     attributes:
-      git-fetch-delay-in-seconds:
+      bsp-to-target-board:
         description: |
-          It shall be the delay between Git fetches from the remote repository
-          in seconds.
+          It shall be the BSP name to target board mapping.
+        spec-type: str-to-str
+      delete-remote-branch:
+        description: |
+          It shall be true, to delete the remote branch once the request
+          handling finished, otherwise the remote branch is not deleted.
+        spec-type: bool
+      git-fetch-polling-interval-in-seconds:
+        description: |
+          It shall be the Git fetch polling interval in seconds.  The polling
+          interval determines how often a Git fetch from the remote repository
+          is carried out.
+        spec-type: int
+      max-overall-timeout-in-seconds:
+        description: |
+          It shall be the maximum for the sum of all executable timeout values
+          of a request in seconds.  The test runner splits up its work into
+          multiple requests to the ESA test run repository.  While the timeout
+          of an individual executable exceeds the value, a request with exactly
+          this executable will be sent.
         spec-type: int
       max-request-delay-in-seconds:
         description: |
@@ -29,6 +47,12 @@ spec-info:
         description: |
           It shall be the path to the strip program.
         spec-type: str
+      timeout-scaling-factor:
+        description: |
+          It shall be factor to scale the timeout of individual executables.
+          For example, the scaling factor can be used to compensate a slower
+          test output compared to the reference test runner.
+        spec-type: float
     description: |
       This set of attributes specifies an ESA test runner.
     mandatory-attributes: all

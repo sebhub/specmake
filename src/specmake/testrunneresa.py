@@ -98,37 +98,61 @@ board."""
             with compressed.open("wb") as dst:
                 dst.write(data)
 
-    def _write_request_file(self, working_directory: Path,
-                            executables: list[Executable]) -> tuple[str, int]:
+    def _write_request_file(
+            self, working_directory: Path,
+            remaining: list[Executable]) -> tuple[str, int, list[Executable]]:
         """
-        Write the request file to run the prepared executables.
+        Write the request file to run the prepared remaining executables.
 
         Returns the request file name and the overall timeout in seconds.
         """
         request_file = working_directory / "request.yaml"
         overall_timeout = 0
+        todo: list[Executable] = []
+        max_overall_timeout = self["max-overall-timeout-in-seconds"]
+        timeout_scaler = self["timeout-scaling-factor"]
         with request_file.open("w", encoding="utf-8") as dst:
             jobs: list[dict[str, dict[str, int]]] = []
             max_timeout = 0
-            for executable in executables:
-                timeout = int(math.ceil(executable.timeout))
-                overall_timeout += timeout
+            while True:
+                try:
+                    executable = remaining.pop(0)
+                except IndexError:
+                    break
+                timeout = int(math.ceil(executable.timeout * timeout_scaler))
+                if overall_timeout == 0:
+                    # Ignore the maximum overall timeout for the first
+                    # executable
+                    overall_timeout = timeout
+                else:
+                    new_overall_timeout = overall_timeout + timeout
+                    if new_overall_timeout > max_overall_timeout:
+                        # Move executable to next request
+                        remaining.insert(0, executable)
+                        break
+                    overall_timeout = new_overall_timeout
                 max_timeout = max(max_timeout, timeout)
+                todo.append(executable)
                 jobs.append(
                     {_bz2_file(executable): {
                          "timeout_in_seconds": timeout
                      }})
             request = {
-                "version": 1,
-                "target_board": self.component["bsp"].upper(),
-                "timeout_in_seconds": max_timeout,
-                "jobs": jobs
+                "version":
+                1,
+                "target_board":
+                self["bsp-to-target-board"][self.substitute(
+                    "${.:/component/arch}/${.:/component/bsp}")],
+                "timeout_in_seconds":
+                max_timeout,
+                "jobs":
+                jobs
             }
             dst.write(
                 yaml.dump(request,
                           default_flow_style=False,
                           allow_unicode=True))
-        return request_file.name, overall_timeout
+        return request_file.name, overall_timeout, todo
 
     def _wait_for_update(self, working_directory: Path, branch: str,
                          overall_timeout: int) -> None:
@@ -142,7 +166,7 @@ board."""
                              overall_timeout)
         begin = time.monotonic()
         while time.monotonic() - begin < max_duration:
-            time.sleep(self["git-fetch-delay-in-seconds"])
+            time.sleep(self["git-fetch-polling-interval-in-seconds"])
             status = run_command(["git", "fetch", "origin", branch],
                                  cwd=working_directory)
             if status != 0:
@@ -157,10 +181,10 @@ board."""
             if stdout:
                 return
 
-    def _get_reports(self, working_directory: Path,
-                     executables: list[Executable]) -> list[Report]:
-        """ Get the reports from the result text file of each executable.  """
-        reports: list[Report] = []
+    def _add_reports(self, working_directory: Path,
+                     executables: list[Executable],
+                     reports: list[Report]) -> None:
+        """ Add the reports from the result text file of each executable.  """
         for executable in executables:
             result_file = f"{Path(executable.path).name}.bz2.result.txt"
             result_path = working_directory / result_file
@@ -177,36 +201,41 @@ board."""
                 continue
             report["output"] = output
             reports.append(report)
-        return reports
 
     def run_tests(self, executables: list[Executable]) -> list[Report]:
-        super().run_tests(executables)
+        reports: list[Report] = []
         repository = self.director[self.item.parent(
             "weak-package-build-dependency").uid]
         assert isinstance(repository, RepositoryState)
         working_directory = Path(repository.directory)
-        branch = self._create_branch(working_directory, repository)
         self._copy_and_prepare_executables(working_directory, executables)
-        request_file, overall_timeout = self._write_request_file(
-            working_directory, executables)
-        files = [_bz2_file(executable) for executable in executables]
-        status = run_command(["git", "add"] + files + [request_file],
-                             cwd=working_directory)
-        assert status == 0
-        status = run_command(["git", "commit", "-m", "Request"],
-                             cwd=working_directory)
-        assert status == 0
-        status = run_command(["git", "push", "-u", "origin", branch],
-                             cwd=working_directory)
-        assert status == 0
-        self._wait_for_update(working_directory, branch, overall_timeout)
-        status = run_command(["git", "reset", "--hard", f"origin/{branch}"],
-                             cwd=working_directory)
-        assert status == 0
-        status = run_command(["git", "push", "-d", "origin", branch],
-                             cwd=working_directory)
-        assert status == 0
-        reports = self._get_reports(working_directory, executables)
+        branch = self._create_branch(working_directory, repository)
+        remaining = executables.copy()
+        counter = 0
+        while remaining:
+            request_file, overall_timeout, todo = self._write_request_file(
+                working_directory, remaining)
+            files = [_bz2_file(executable) for executable in todo]
+            status = run_command(["git", "add"] + files + [request_file],
+                                 cwd=working_directory)
+            assert status == 0
+            status = run_command(["git", "commit", "-m", f"Request {counter}"],
+                                 cwd=working_directory)
+            assert status == 0
+            status = run_command(["git", "push", "origin", branch],
+                                 cwd=working_directory)
+            assert status == 0
+            self._wait_for_update(working_directory, branch, overall_timeout)
+            status = run_command(
+                ["git", "reset", "--hard", f"origin/{branch}"],
+                cwd=working_directory)
+            assert status == 0
+            self._add_reports(working_directory, todo, reports)
+            counter += 1
+        if self["delete-remote-branch"]:
+            status = run_command(["git", "push", "-d", "origin", branch],
+                                 cwd=working_directory)
+            assert status == 0
         status = run_command(["git", "checkout", repository["branch"]],
                              cwd=working_directory)
         assert status == 0
