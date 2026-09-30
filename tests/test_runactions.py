@@ -127,6 +127,8 @@ def test_runactions(caplog, tmpdir):
     ​c​d​ ​​/​p​k​g​/​b​u​i​l​d​ ​&​&​ ​g​i​t​ ​f​o​o​b​a​r
     ​e​n​v​ ​-​i​ ​-​u​ ​F​O​O​B​A​R​ ​B​L​U​B​=​b​l​u​b​-​p​r​e​p​e​n​d​:​b​l​u​b​:​b​l​u​b​-​a​p​p​e​n​d​ ​g​i​t​ ​s​t​a​t​u​s
     ​c​d​ ​​/​p​k​g​/​b​u​i​l​d​ ​&​&​ ​g​i​t​ ​s​t​a​t​u​s
+    ​e​c​h​o​ ​f​o​o​ ​b​a​r​ ​>​ ​​/​p​k​g​/​b​u​i​l​d​/​s​t​d​o​u​t​-​a​b​s​o​l​u​t​e​.​t​x​t
+    ​c​d​ ​​/​p​k​g​/​b​u​i​l​d​ ​&​&​ ​e​c​h​o​ ​b​a​r​ ​f​o​o​ ​>​ ​s​t​d​o​u​t​-​r​e​l​a​t​i​v​e​.​t​x​t
 
 Represent the files:
 
@@ -139,3 +141,7 @@ Represent the files:
 - :file:`/​pkg/​build/​run-​actions/​foo.​ini`
 
 - :file:`/​pkg/​build/​run-​actions/​some/​other/​file.​txt`"""
+    build_dir = tmp_dir / "pkg" / "build"
+    assert (build_dir / "stdout-absolute.txt").read_text() == "foo bar\n"
+    assert (build_dir / "stdout-relative.txt").read_text() == "bar foo\n"
+    assert not Path("stdout-relative.txt").exists()

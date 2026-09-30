@@ -30,13 +30,24 @@ spec-info:
           If the value is present, then it shall be the expected return code of
           the command.
         spec-type: optional-int
+      stdout:
+        description: |
+          If the attribute is present, then it shall be the path of the file
+          which takes the standard output of the command.  A relative path is
+          relative to the working directory.  The parent directory of the file
+          shall exist.  A variable substitution is performed on the value.
+        spec-type: str
       working-directory:
         description: |
           It shall be the working directory to run the command.
         spec-type: str
     description: |
       This set of attributes specifies a subprocess action.
-    mandatory-attributes: all
+    mandatory-attributes:
+    - command
+    - env
+    - expected-return-code
+    - working-directory
 spec-name: Subprocess Action
 spec-type: pkg-action-subprocess
 type: spec

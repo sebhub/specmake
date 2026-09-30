@@ -437,6 +437,7 @@ class RunActionsProvider:
 
     def _process(self, client: BuildItem, action: dict,
                  _output: Optional[DirectoryStateBase]) -> None:
+        # pylint: disable=too-many-locals
         arg_is_enabled = functools.partial(is_enabled_with_ops,
                                            self._is_enabled_ops,
                                            client.enabled_set)
@@ -449,6 +450,8 @@ class RunActionsProvider:
                 action_2[key] = client.mapper.substitute_data(value)
         run_subprocess_action(client.uid, action_2)
         cwd = action_2["working-directory"]
+        stdout = action_2.get("stdout", None)
+        redirect = "" if stdout is None else f" > {stdout}"
         if cwd != ".":
             cmd = f"cd {cwd} && "
         else:
@@ -470,7 +473,8 @@ class RunActionsProvider:
             args.extend(f"{name}={value}"
                         for name, value in sorted(env.var_set.items()))
             cmd = f"{cmd}env {' '.join(args)} "
-        _add_description(client, f"{cmd}{' '.join(action_2['command'])}")
+        _add_description(client,
+                         f"{cmd}{' '.join(action_2['command'])}{redirect}")
 
     def _for_each(self, client: BuildItem, action: dict,
                   _output: Optional[DirectoryStateBase]) -> None:

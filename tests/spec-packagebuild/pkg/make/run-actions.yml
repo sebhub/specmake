@@ -359,6 +359,26 @@ actions:
   env: []
   expected-return-code: 0
   working-directory: ${.:/component/build-directory}
+- action: subprocess
+  command:
+  - echo
+  - foo
+  - bar
+  enabled-by: true
+  env: []
+  expected-return-code: 0
+  stdout: ${.:/component/build-directory}/stdout-absolute.txt
+  working-directory: .
+- action: subprocess
+  command:
+  - echo
+  - bar
+  - foo
+  enabled-by: true
+  env: []
+  expected-return-code: 0
+  stdout: stdout-relative.txt
+  working-directory: ${.:/component/build-directory}
 copyrights:
 - Copyright (C) 2023 embedded brains GmbH & Co. KG
 enabled-by: true
