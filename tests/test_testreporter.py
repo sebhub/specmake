@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 """ Tests for the testaggregator module. """
 
-# Copyright (C) 2025 embedded brains GmbH & Co. KG
+# Copyright (C) 2025, 2026 embedded brains GmbH & Co. KG
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,6 +27,8 @@
 from pathlib import Path
 
 import pytest
+
+from specmake.testreporter import _TestContext
 
 from .util import create_package, get_document_text
 
@@ -2222,3 +2224,51 @@ the tests it runs."""
     # report states this and produces no coverage page
     assert "There is no coverage data available." in _get_tr3("index.rst")
     assert _get_tr3("coverage.rst") == ""
+
+    assert director["/pkg/deployment/doc-djf-tr"]["test-program-counts"] == {
+        "/rtems/target-a": {
+            "expected-failures": 0,
+            "passed": 4,
+            "unexpected-failures": 11,
+            "unexpected-passes": 0
+        }
+    }
+    assert director["/pkg/deployment/doc-djf-tr-2"]["test-program-counts"] == {
+        "/rtems/target-b": {
+            "expected-failures": 0,
+            "passed": 0,
+            "unexpected-failures": 1,
+            "unexpected-passes": 0
+        }
+    }
+
+
+def _add_failure(failures, target_uid, uid):
+    failures.setdefault(target_uid, {}).setdefault(
+        (uid, ""), {}).setdefault("c", set()).add("e")
+
+
+def test_testreporter_program_scope():
+    ctx = _TestContext.__new__(_TestContext)
+    ctx.expected_failures = {}
+    ctx.unexpected_failures = {}
+    ctx.program_counts = {}
+    ctx.target_uid = "/t"
+    ctx.verifications = {"/xfail": "/v"}
+    with ctx.program_scope(["/pass"]):
+        pass
+    with ctx.program_scope(["/xfail"]):
+        pass
+    with ctx.program_scope(["/xfail"]):
+        _add_failure(ctx.expected_failures, "/t", "/xfail")
+    with ctx.program_scope(["/fail"]):
+        _add_failure(ctx.expected_failures, "/t", "/both")
+        _add_failure(ctx.unexpected_failures, "/t", "/fail")
+    assert ctx.program_counts == {
+        "/t": {
+            "expected-failures": 1,
+            "passed": 1,
+            "unexpected-failures": 1,
+            "unexpected-passes": 1
+        }
+    }

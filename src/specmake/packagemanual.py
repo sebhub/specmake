@@ -30,8 +30,9 @@ import logging
 import os
 from typing import Iterator
 
-from specitems import (Copyrights, Item, ItemGetValueContext, Link, ROW_SPAN,
-                       TextContent, make_label)
+from specitems import (CommonMarkContent, Copyrights, Item,
+                       ItemGetValueContext, Link, ROW_SPAN, TextContent,
+                       make_label)
 from specware import (gather_api_items, run_command)
 
 from .archiver import Archiver
@@ -40,7 +41,7 @@ from .docbuilder import DocumentBuilder
 from .membench import generate, generate_variants_table, MembenchVariant
 from .pkgitems import PackageBuildDirector
 from .packagechanges import PackageChanges
-from .testaggregator import TestAggregator
+from .testaggregator import CoverageGap, CoverageScope, TestAggregator
 from .testreporter import TestReporter
 from .testrunner import TestLog
 
@@ -435,38 +436,176 @@ parts, so read a delivered file together with this section.""")
             return content.join()
 
 
+_MAX_GAP_ROWS = 20
+
+_COUNT_HEADER = ("Passed", "Expected failures", "Unexpected failures",
+                 "Unexpected passes")
+
+_COUNT_KEYS = ("passed", "expected-failures", "unexpected-failures",
+               "unexpected-passes")
+
+_Reports = list[tuple[str, TestReporter]]
+
+
+def _add_gap_rows(rows: list[list[str]], notes: list[str],
+                  scope: CoverageScope, gaps: list[CoverageGap],
+                  with_uid: bool) -> None:
+    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-positional-arguments
+    for gap in gaps[:_MAX_GAP_ROWS]:
+        row = [
+            scope.component, scope.target, scope.config, scope.scope, gap.file,
+            gap.spot
+        ]
+        if with_uid:
+            row.insert(0, gap.uid)
+        rows.append(row)
+    more = len(gaps) - _MAX_GAP_ROWS
+    if more > 0:
+        notes.append(f"And {more} more in scope {scope.scope} of "
+                     f"{scope.target} and configuration {scope.config} of "
+                     f"component {scope.component}.")
+
+
+def _add_gap_section(content: TextContent, name: str, rows: list[list[str]],
+                     notes: list[str]) -> None:
+    if len(rows) > 1:
+        with content.section(name):
+            content.add_simple_table(rows)
+            for note in notes:
+                content.add(note)
+
+
+def _count(count: int, singular: str, plural: str) -> str:
+    return f"{count} {singular if count == 1 else plural}"
+
+
+def _add_status(content: TextContent, reports: _Reports,
+                scopes: list[CoverageScope]) -> None:
+    # The test report lists the coverage issues of a target under the UID of
+    # the target.
+    items = 0
+    targets = 0
+    for _, report in reports:
+        for target, uids in report["unexpected-test-failures"].items():
+            items += sum(1 for uid in uids if uid != target)
+            targets += int(target in uids)
+    nok = sum(1 for scope in scopes if scope.error)
+    stale = len(set(gap.uid for scope in scopes for gap in scope.stale))
+    causes: list[str] = []
+    if items:
+        causes.append(
+            _count(items, "item with unexpected test failures",
+                   "items with unexpected test failures"))
+    if targets:
+        causes.append(
+            _count(targets, "target with coverage issues",
+                   "targets with coverage issues"))
+    if nok:
+        causes.append(
+            _count(nok, "coverage scope misses its limits",
+                   "coverage scopes miss their limits"))
+    if stale:
+        causes.append(_count(stale, "stale gap item", "stale gap items"))
+    if causes:
+        with content.section("❌ Failed"):
+            content.add_list(causes)
+    else:
+        with content.section("✅ Passed"):
+            content.add("There are no unexpected test failures.  All "
+                        "coverage scopes meet their limits.  There are no "
+                        "stale gap items.")
+
+
+def _add_test_overview(content: TextContent, reports: _Reports) -> None:
+    with content.section("Test overview"):
+        rows = [["Component", "Target", *_COUNT_HEADER]]
+        for ident, report in reports:
+            for target, counts in report.get("test-program-counts",
+                                             {}).items():
+                rows.append([ident, target] +
+                            [str(counts[key]) for key in _COUNT_KEYS])
+        if len(rows) == 1:
+            content.add("There are no test program results.")
+        else:
+            content.add("The table counts the test programs.")
+            content.add_simple_table(rows)
+
+
+def _add_unexpected_failures(content: TextContent, reports: _Reports) -> None:
+    rows = [["Component", "Target", "Item"]]
+    for ident, report in reports:
+        for target, uids in report["unexpected-test-failures"].items():
+            rows.extend([ident, target, uid] for uid in uids)
+    if len(rows) > 1:
+        with content.section("Unexpected failures"):
+            content.add_simple_table(rows)
+
+
+def _add_coverage(content: TextContent, scopes: list[CoverageScope]) -> None:
+    with content.section("Coverage"):
+        if not scopes:
+            content.add("There is no coverage data available.")
+            return
+        rows = [[
+            "Component", "Target", "Configuration", "Scope", "Functions",
+            "Status", "Lines", "Status", "Branches", "Status"
+        ]]
+        rows.extend(
+            [scope.component, scope.target, scope.config, scope.scope] +
+            scope.cells for scope in scopes)
+        content.add_simple_table(rows)
+
+
 class PackageSummary(DirectoryState):
-    """ Builds a package summary. """
+    """
+    Builds a package summary in CommonMark.
+
+    The summary states the overall status at its beginning.  It omits the
+    sections of failures, gaps and stale gap items without entries.
+    """
 
     def run(self) -> None:
         summary_file = self.file
         self.mapper.set_format(summary_file)
-        content = self.mapper.create_content(section_level=0)
+        reports: _Reports = []
+        for report in self.inputs("test-report"):
+            assert isinstance(report, TestReporter)
+            with report.component.scope():
+                reports.append(
+                    (report.substitute("${.:/component/ident}"), report))
+        scopes: list[CoverageScope] = []
+        for test_aggregator in self.inputs("test-aggregation"):
+            assert isinstance(test_aggregator, TestAggregator)
+            with test_aggregator.component.scope():
+                scopes.extend(test_aggregator.get_coverage_scopes(self.mapper))
+        content = CommonMarkContent(0, context=self.mapper.context)
         with content.section(f"Package summary - {self.component['ident']}"):
-            with content.section("Test status"):
-                self._add_test_status(content)
-            with content.section("Coverage data"):
-                self._add_coverage_achievement(content)
+            _add_status(content, reports, scopes)
+            _add_test_overview(content, reports)
+            _add_unexpected_failures(content, reports)
+            _add_coverage(content, scopes)
+            rows = [[
+                "Component", "Target", "Configuration", "Scope", "File", "Spot"
+            ]]
+            notes: list[str] = []
+            for scope in scopes:
+                _add_gap_rows(rows, notes, scope, scope.gaps, False)
+            _add_gap_section(content, "Unjustified gaps", rows, notes)
+            rows = [[
+                "Item", "Component", "Target", "Configuration", "Scope",
+                "File", "Spot"
+            ]]
+            notes = []
+            for scope in scopes:
+                _add_gap_rows(rows, notes, scope, scope.stale, True)
+            _add_gap_section(content, "Stale gap items", rows, notes)
             with content.section("Repositories"):
                 self._add_repositories(content)
         content.write(summary_file)
+        path = self.mapper.create_content().path(summary_file)
         self.description.add(f"""Produce the package summary file
-{content.path(summary_file)}.""")
-
-    def _add_test_status(self, content: TextContent) -> None:
-        for test_report in self.inputs("test-report"):
-            assert isinstance(test_report, TestReporter)
-            with test_report.component.scope():
-                ident = test_report.substitute("${.:/component/ident}")
-                with content.section(f"Component - {ident}"):
-                    unexpected = test_report["unexpected-test-failures"]
-                    if unexpected:
-                        for target, failures in unexpected.items():
-                            with content.list_item(target):
-                                content.add_list(failures)
-                    else:
-                        content.add("There were no unexpected test errors "
-                                    "found in the test outputs.")
+{path}.""")
 
     def _add_repositories(self, content: TextContent) -> None:
         package = self.director.package
@@ -482,12 +621,3 @@ class PackageSummary(DirectoryState):
                         stdout: list[str] = []
                         run_command(["git", "log", "-1"], repo_dir, stdout)
                         content.add_code_block(stdout)
-
-    def _add_coverage_achievement(self, content: TextContent) -> None:
-        for test_aggregator in self.inputs("test-aggregation"):
-            assert isinstance(test_aggregator, TestAggregator)
-            with test_aggregator.component.scope():
-                ident = test_aggregator.substitute("${.:/component/ident}")
-                with content.section(f"Component - {ident}"):
-                    test_aggregator.add_simple_coverage_achievement(
-                        content, self.mapper)

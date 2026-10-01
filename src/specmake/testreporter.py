@@ -28,7 +28,7 @@ from contextlib import contextmanager
 import functools
 import os
 import re
-from typing import Any, Callable, Iterator, NamedTuple
+from typing import Any, Callable, Iterable, Iterator, NamedTuple
 
 from specitems import (EmptyItem, Item, ItemGetValueContext, SphinxContent,
                        base64_to_hex_text)
@@ -41,6 +41,9 @@ from .testaggregator import TestAggregator
 from .util import duration
 
 _Failures = dict[str, dict[tuple[Item, str], dict[str, set[str]]]]
+
+_VERDICTS = ("passed", "expected-failures", "unexpected-failures",
+             "unexpected-passes")
 
 _NON_ORDINARY = re.compile(r"[^\x20-\x7e]")
 
@@ -198,6 +201,7 @@ class _TestContext:
         self.enabled_set = reporter.enabled_set
         self.expected_failures: _Failures = {}
         self.unexpected_failures: _Failures = {}
+        self.program_counts: dict[str, dict[str, int]] = {}
         self.limits_uid = ""
         self.limits_by_req: dict[str, dict] = {}
         self.target_hashes: tuple[str, ...] = tuple()
@@ -424,6 +428,36 @@ reported test information.""")
         ])
         self.add_table(rows, [15, 45, 25, 15])
 
+    def _count_failures(self, failures: _Failures) -> int:
+        return sum(
+            len(texts)
+            for by_config in failures.get(self.target_uid, {}).values()
+            for texts in by_config.values())
+
+    @contextmanager
+    def program_scope(self, uids: Iterable[str]) -> Iterator[None]:
+        """
+        Open a scope which counts the test program by its verdict.
+
+        A program which reports no failure is an unexpected pass if a
+        verification of the program or of one of its test cases expects a
+        failure.
+        """
+        unexpected = self._count_failures(self.unexpected_failures)
+        expected = self._count_failures(self.expected_failures)
+        yield
+        if self._count_failures(self.unexpected_failures) > unexpected:
+            verdict = "unexpected-failures"
+        elif self._count_failures(self.expected_failures) > expected:
+            verdict = "expected-failures"
+        elif any(uid in self.verifications for uid in uids):
+            verdict = "unexpected-passes"
+        else:
+            verdict = "passed"
+        counts = self.program_counts.setdefault(self.target_uid,
+                                                dict.fromkeys(_VERDICTS, 0))
+        counts[verdict] += 1
+
     @contextmanager
     def file_scope(self, file_path: str, data: dict) -> Iterator[str]:
         """ Opens a file scope. """
@@ -449,14 +483,15 @@ def _add_test_output(ctx: _TestContext, report: dict) -> None:
         _add_output(ctx, report)
 
 
-def _save_unexpected_failures(destination: DirectoryState,
-                              failures: _Failures) -> None:
+def _save_failures(destination: DirectoryState, ctx: _TestContext) -> None:
+    failures = ctx.unexpected_failures
     target_to_failures: dict[str, list[str]] = {}
     for target_uid, by_test in sorted(failures.items()):
         target_to_failures[target_uid] = [
             item_text[0].uid for item_text in sorted(by_test.keys())
         ]
     destination["unexpected-test-failures"] = target_to_failures
+    destination["test-program-counts"] = ctx.program_counts
 
 
 class TestReporter(DocumentBuilder):
@@ -612,12 +647,15 @@ presented in the following sections.""")
     def _add_test_suites(self, ctx: _TestContext) -> None:
         for suite_uid, suite_data in sorted(
                 ctx.config_data["test-suites"].items()):
-            with ctx.file_scope(self.file_path, suite_data):
+            uids = [suite_uid, *suite_data["test-cases"]]
+            with ctx.file_scope(self.file_path,
+                                suite_data), ctx.program_scope(uids):
                 self._add_one_test_suite(ctx, suite_uid, suite_data)
 
     def _add_test_programs(self, ctx: _TestContext) -> None:
         for uid, report in sorted(ctx.config_data["test-programs"].items()):
-            with ctx.file_scope(self.file_path, report) as file_name:
+            with ctx.file_scope(self.file_path, report) as file_name, \
+                    ctx.program_scope([uid]):
                 program_item = self.item.cache[uid]
                 ctx.item = program_item
                 program_section = f"Test program - {program_item.spec_2}"
@@ -634,7 +672,8 @@ presented in the following sections.""")
     def _add_other_programs(self, ctx: _TestContext) -> None:
         for executable, report in sorted(
                 ctx.config_data["other-programs"].items()):
-            with ctx.file_scope(self.file_path, report) as file_name:
+            with ctx.file_scope(self.file_path, report) as file_name, \
+                    ctx.program_scope([]):
                 program_section = f"Other program - {executable}"
                 with ctx.content.section(program_section, label=file_name):
                     ctx.begin_report(report)
@@ -723,5 +762,5 @@ presented in the following sections.""")
         ctx.add_failures("expected", ctx.expected_failures, test_aggregator)
         ctx.add_failures("unexpected", ctx.unexpected_failures,
                          test_aggregator)
-        _save_unexpected_failures(self, ctx.unexpected_failures)
+        _save_failures(self, ctx)
         return ctx.content.join()

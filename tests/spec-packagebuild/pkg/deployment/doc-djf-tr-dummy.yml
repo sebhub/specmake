@@ -44,6 +44,12 @@ links:
 output-html: null
 output-pdf: null
 pkg-type: directory-state
+test-program-counts:
+  /rtems/target-a:
+    expected-failures: 2
+    passed: 3
+    unexpected-failures: 7
+    unexpected-passes: 1
 type: pkg
 unexpected-test-failures:
   /rtems/target-a:
@@ -57,6 +63,7 @@ unexpected-test-failures:
   - /rtems/req/action
   - /rtems/req/action-2
   - /rtems/req/perf-no-results
+  - /rtems/target-a
   - /rtems/val/test-case-fail
   - /rtems/val/test-case-run
   - /rtems/val/test-case-unit

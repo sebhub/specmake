@@ -1,6 +1,6 @@
 SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
-- Copyright (C) 2023, 2024 embedded brains GmbH & Co. KG
+- Copyright (C) 2023, 2026 embedded brains GmbH & Co. KG
 enabled-by: true
 links:
 - role: spec-member
@@ -14,13 +14,18 @@ spec-example: null
 spec-info:
   dict:
     attributes:
+      test-program-counts:
+        description: |
+          It shall be the count of test programs by verdict for each target.
+        spec-type: pkg-test-program-counts
       unexpected-test-failures:
         description: |
           It shall be the list of unexpected test failures for each target.
         spec-type: pkg-test-failures
     description: |
       This set of attributes specifies a test report document.
-    mandatory-attributes: all
+    mandatory-attributes:
+    - unexpected-test-failures
 spec-name: Test Report Item Type
 spec-type: pkg-test-report
 type: spec

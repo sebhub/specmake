@@ -1,0 +1,38 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      expected-failures:
+        description: |
+          It shall be the count of test programs with expected failures only.
+        spec-type: int
+      passed:
+        description: |
+          It shall be the count of test programs without a failure and
+          without a verification which expects a failure.
+        spec-type: int
+      unexpected-failures:
+        description: |
+          It shall be the count of test programs with at least one unexpected
+          failure.
+        spec-type: int
+      unexpected-passes:
+        description: |
+          It shall be the count of test programs without a failure for which
+          a verification expects a failure.
+        spec-type: int
+    description: |
+      This set of attributes counts the test programs of a target by their
+      verdict.
+    mandatory-attributes: all
+spec-name: Test Program Count
+spec-type: pkg-test-program-count
+type: spec

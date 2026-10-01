@@ -31,10 +31,11 @@ import pickle
 import subprocess
 
 import specitems
-from specitems import ItemGetValueContext
+from specitems import CommonMarkContent, ItemGetValueContext
 
 import specmake
 from specmake import PackageComponent, TestReporter
+from specmake.testaggregator import CoverageGap, CoverageScope
 
 from .util import create_package
 
@@ -1093,105 +1094,125 @@ Support the package build.
 """
     package_summary = director["/pkg/deployment/doc-package-summary"]
     with open(package_summary.file, "r", encoding="utf-8") as src:
-        assert src.read() == """(PackageSummarySparcGr712rcSmp4)=
+        assert src.read() == """<a id="PackageSummarySparcGr712rcSmp4"></a>
 
 # Package summary - sparc/gr712rc/smp/4
 
-(PackageSummarySparcGr712rcSmp4TestStatus)=
+<a id="PackageSummarySparcGr712rcSmp4Failed"></a>
 
-## Test status
+## ❌ Failed
 
-(PackageSummarySparcGr712rcSmp4TestStatusComponentSparcGr712rcSmp4)=
+- 18 items with unexpected test failures
 
-### Component - sparc/gr712rc/smp/4
+- 1 target with coverage issues
 
-- /rtems/target-a
+- 3 coverage scopes miss their limits
 
-  - /build/test-program
+- 1 stale gap item
 
-  - /build/testsuites/smptests/smplock01
+<a id="PackageSummarySparcGr712rcSmp4TestOverview"></a>
 
-  - /build/testsuites/smptests/smpopenmp01
+## Test overview
 
-  - /build/testsuites/sptests/sptimecounter02
+The table counts the test programs.
 
-  - /build/testsuites/tmtests/tmcontext01
+ | Component           | Target          | Passed | Expected failures | Unexpected failures | Unexpected passes |
+ | ------------------- | --------------- | ------ | ----------------- | ------------------- | ----------------- |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | 3      | 2                 | 7                   | 1                 |
 
-  - /build/testsuites/tmtests/tmfine01
+<a id="PackageSummarySparcGr712rcSmp4UnexpectedFailures"></a>
 
-  - /build/testsuites/tmtests/tmtimer01
+## Unexpected failures
 
-  - /rtems/req/action
+ | Component           | Target          | Item                                      |
+ | ------------------- | --------------- | ----------------------------------------- |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/test-program                       |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smplock01      |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smpopenmp01    |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/sptests/sptimecounter02 |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmcontext01     |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmfine01        |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmtimer01       |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action                         |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action-2                       |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/perf-no-results                |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/target-a                           |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-fail                 |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-run                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-unit                 |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-xfail                |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/performance-no-clock-0        |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-fail               |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-pass               |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-xfail              |
 
-  - /rtems/req/action-2
+<a id="PackageSummarySparcGr712rcSmp4Coverage"></a>
 
-  - /rtems/req/perf-no-results
+## Coverage
 
-  - /rtems/val/test-case-fail
+ | Component           | Target        | Configuration    | Scope   | Functions           | Status  | Lines                    | Status  | Branches             | Status  |
+ | ------------------- | ------------- | ---------------- | ------- | ------------------- | ------- | ------------------------ | ------- | -------------------- | ------- |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Scope   | 0/0 (N/A) [13+2/16] | **NOK** | 5+1/6 (100%) [114+3/119] | OK      | 2/2 (100%) [12+4/18] | OK      |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Empty   | N/A                 | **NOK** | N/A                      | **NOK** | N/A                  | **NOK** |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Good    | 1/1 (100%)          | OK      | 18/18 (100%)             | OK      | 4/4 (100%)           | OK      |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | 0/1 (0.0%) [1/1]    | **NOK** | 3/18 (16.6%) [0/2]       | **NOK** | 2/4 (50.0%)          | **NOK** |
 
-  - /rtems/val/test-case-run
+<a id="PackageSummarySparcGr712rcSmp4UnjustifiedGaps"></a>
 
-  - /rtems/val/test-case-unit
+## Unjustified gaps
 
-  - /rtems/val/test-case-xfail
+ | Component           | Target        | Configuration    | Scope   | File                              | Spot                                              |
+ | ------------------- | ------------- | ---------------- | ------- | --------------------------------- | ------------------------------------------------- |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Scope   | cpukit/score/src/threadqenqueue.c | branch 380/0                                      |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Scope   | cpukit/score/src/threadqenqueue.c | line 831                                          |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Scope   | cpukit/score/src/threadqenqueue.c | function _Thread_queue_Enqueue_do_nothing_extra() |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | bsps/include/bsp/fatal.h          | line 218                                          |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | bsps/include/bsp/fatal.h          | line 220                                          |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 46                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 53                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 54                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 55                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 56                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 57                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 61                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 63                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | branch 63/0                                       |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | branch 63/1                                       |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 64                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 65                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 66                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 68                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 71                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 72                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | line 73                                           |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Overall | cpukit/score/src/chain.c          | function _Chain_Initialize()                      |
 
-  - /testsuites/performance-no-clock-0
+<a id="PackageSummarySparcGr712rcSmp4StaleGapItems"></a>
 
-  - /testsuites/test-suite-fail
+## Stale gap items
 
-  - /testsuites/test-suite-pass
+ | Item                                | Component           | Target        | Configuration    | Scope | File                              | Spot         |
+ | ----------------------------------- | ------------------- | ------------- | ---------------- | ----- | --------------------------------- | ------------ |
+ | /verification/code-coverage-gap/gap | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Scope | cpukit/score/src/threadqenqueue.c | branch 375/0 |
+ | /verification/code-coverage-gap/gap | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Scope | cpukit/score/src/threadqenqueue.c | line 399     |
 
-  - /testsuites/test-suite-xfail
-
-(PackageSummarySparcGr712rcSmp4TestStatusComponentSparcGr712rcSmp4)=
-
-### Component - sparc/gr712rc/smp/4
-
-There were no unexpected test errors found in the test outputs.
-
-(PackageSummarySparcGr712rcSmp4CoverageData)=
-
-## Coverage data
-
-(PackageSummarySparcGr712rcSmp4CoverageDataComponentSparcGr712rcSmp4)=
-
-### Component - sparc/gr712rc/smp/4
-
- | Target        | Configuration    | Scope   | Functions           | Status  | Lines                    | Status  | Branches             | Status  |
- | ------------- | ---------------- | ------- | ------------------- | ------- | ------------------------ | ------- | -------------------- | ------- |
- | Name Target A | build-config-key | Scope   | 0/0 (N/A) [13+2/16] | **NOK** | 5+1/6 (100%) [114+3/119] | OK      | 2/2 (100%) [12+4/18] | OK      |
- | Name Target A | build-config-key | Empty   | N/A                 | **NOK** | N/A                      | **NOK** | N/A                  | **NOK** |
- | Name Target A | build-config-key | Good    | 1/1 (100%)          | OK      | 18/18 (100%)             | OK      | 4/4 (100%)           | OK      |
- | Name Target A | build-config-key | Overall | 0/1 (0.0%) [1/1]    | **NOK** | 3/18 (16.6%) [0/2]       | **NOK** | 2/4 (50.0%)          | **NOK** |
-
-(PackageSummarySparcGr712rcSmp4CoverageDataComponentSparcGr712rcSmp4)=
-
-### Component - sparc/gr712rc/smp/4
-
- | Target | Configuration | Scope | Functions | Status | Lines | Status | Branches | Status |
- | ------ | ------------- | ----- | --------- | ------ | ----- | ------ | -------- | ------ |
-
-(PackageSummarySparcGr712rcSmp4Repositories)=
+<a id="PackageSummarySparcGr712rcSmp4Repositories"></a>
 
 ## Repositories
 
-(PackageSummarySparcGr712rcSmp4RepositoriesSpec)=
+<a id="PackageSummarySparcGr712rcSmp4RepositoriesSpec"></a>
 
 ### ../spec
 
-```{code} none
-:linenos:
-:lineno-start: 1
+```none
 git log -1
 ```
 
-(PackageSummarySparcGr712rcSmp4RepositoriesBuildSrcB)=
+<a id="PackageSummarySparcGr712rcSmp4RepositoriesBuildSrcB"></a>
 
 ### build/src/b
 
-```{code} none
-:linenos:
-:lineno-start: 1
+```none
 git log -1
 ```
 """
@@ -1227,3 +1248,51 @@ text
         assert verify_package_sha512 == "6​f​a​c​7​d​c​2​c​6​2​4​1​c​b​3​0​6​b​5​6​a​8​1​5​7​a​c​b​1​3​b​c​5​1​e​a​e​4​e​c​9​3​6​8​5​5​4​0​b​7​a​7​9​3​1​e​1​5​3​3​7​4​7​8​7​0​1​2​e​8​6​8​2​6​8​4​e​6​5​b​9​9​7​7​5​2​a​e​0​a​f​a​e​6​5​7​6​6​a​c​b​b​a​0​e​e​6​5​e​2​9​8​a​0​b​f​7​2​d​d​c​4​6​e​7​0​9"
     else:
         assert verify_package_sha512 == "3​8​9​0​0​3​a​2​4​5​5​4​8​4​4​4​4​a​1​0​e​9​b​8​9​9​9​d​4​2​a​8​2​a​f​5​a​e​9​a​d​e​b​5​b​6​1​f​d​9​1​7​4​e​d​9​2​d​3​4​e​1​3​4​8​1​1​3​6​1​2​e​3​5​e​4​5​8​6​a​a​a​e​1​3​9​9​9​8​c​c​f​0​f​f​6​0​3​6​6​1​9​9​f​6​b​2​8​0​e​a​a​5​7​9​1​6​d​6​8​4​4​a​9​3​0​9​7"
+
+
+def test_packagesummary_sections(monkeypatch):
+    monkeypatch.setattr(specmake.packagemanual, "_MAX_GAP_ROWS", 1)
+    content = CommonMarkContent(0, context="BSD-2-Clause")
+    reports = [("c", {"unexpected-test-failures": {}})]
+    scope = CoverageScope("c", "t", "k", "s", [], False, [
+        CoverageGap("f", "line 1"),
+        CoverageGap("f", "line 2"),
+        CoverageGap("f", "line 3")
+    ], [])
+    rows = [["Component", "Target", "Configuration", "Scope", "File", "Spot"]]
+    notes: list[str] = []
+    specmake.packagemanual._add_gap_rows(rows, notes, scope, scope.gaps, False)
+    specmake.packagemanual._add_status(content, reports, [scope])
+    specmake.packagemanual._add_test_overview(content, reports)
+    specmake.packagemanual._add_unexpected_failures(content, reports)
+    specmake.packagemanual._add_coverage(content, [])
+    specmake.packagemanual._add_gap_section(content, "Gaps", rows, notes)
+    specmake.packagemanual._add_gap_section(content, "Empty", rows[:1], [])
+    assert str(content) == """<a id="Passed"></a>
+
+# ✅ Passed
+
+There are no unexpected test failures.  All coverage scopes meet their limits.  There are no stale gap items.
+
+<a id="TestOverview"></a>
+
+# Test overview
+
+There are no test program results.
+
+<a id="Coverage"></a>
+
+# Coverage
+
+There is no coverage data available.
+
+<a id="Gaps"></a>
+
+# Gaps
+
+ | Component | Target | Configuration | Scope | File | Spot   |
+ | --------- | ------ | ------------- | ----- | ---- | ------ |
+ | c         | t      | k             | s     | f    | line 1 |
+
+And 2 more in scope s of t and configuration k of component c.
+"""

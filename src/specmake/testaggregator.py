@@ -24,12 +24,14 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+# pylint: disable=too-many-lines
+
 import copy
 import hashlib
 import itertools
 import logging
 import os
-from typing import Any
+from typing import Any, NamedTuple
 
 from specitems import (Item, ROW_SPAN, SphinxContent, TextContent,
                        link_is_enabled, make_label, to_collection)
@@ -184,6 +186,30 @@ def _add_coverage_table(content: SphinxContent, mapper: BuildItemMapper,
 _COVERAGE_KINDS = ("function", "line", "branch")
 
 
+class CoverageGap(NamedTuple):
+    """ Represents a spot of a coverage gap in a file. """
+    file: str
+    spot: str
+    uid: str = ""
+
+
+class CoverageScope(NamedTuple):
+    """
+    Represents the coverage of a scope for a target and a configuration.
+
+    The cells hold the information and the status of each coverage kind.  A
+    scope has an error if it misses an overall or a file-specific limit.
+    """
+    component: str
+    target: str
+    config: str
+    scope: str
+    cells: list[str]
+    error: bool
+    gaps: list[CoverageGap]
+    stale: list[CoverageGap]
+
+
 class _CoverageSummary:
     # pylint: disable=too-many-instance-attributes
 
@@ -207,6 +233,8 @@ class _CoverageSummary:
         self.bad_files: list[dict] = []
         self.overall: dict = {}
         self.issues: dict[str, set[str]] = {}
+        self.gaps: dict[str, list[CoverageGap]] = {}
+        self.stale: list[CoverageGap] = []
         self._spots_of_file: dict[str, int] = {}
         for kind in _COVERAGE_KINDS:
             self.overall[f"{kind}-covered"] = 0
@@ -238,6 +266,24 @@ class _CoverageSummary:
             self.issues.setdefault("Unused code coverage justifications",
                                    set()).update(f"spec:{spacify(uid)}"
                                                  for uid in unused)
+
+    def _add_gap(self, file_path: str, spot: str) -> None:
+        self.gaps.setdefault(file_path,
+                             []).append(CoverageGap(file_path, spot))
+
+    def get_unjustified_gaps(self) -> list[CoverageGap]:
+        """
+        Get the unjustified gaps which count against a missed limit.
+
+        If the overall coverage misses a limit, these are the gaps of all
+        files.  Otherwise, these are the gaps of the files which miss their
+        limits.
+        """
+        if "error" in self.overall:
+            files = list(self.gaps)
+        else:
+            files = [stats["file-path"] for stats in self.bad_files]
+        return [gap for file in files for gap in self.gaps.get(file, [])]
 
     def _add_not_run_issues(self) -> None:
         """ Add the issues of the excluded tests. """
@@ -425,6 +471,7 @@ class _CoverageSummary:
                 logging.info(
                     "%s: no line coverage gap justification for %s:%s",
                     self.test_aggregator.uid, file_path, line_no)
+                self._add_gap(file_path, f"line {line_no}")
             else:
                 uid = justification[0]
                 logging.info(
@@ -439,6 +486,8 @@ class _CoverageSummary:
                         "%s: out of date line coverage gap "
                         "justification %s for %s:%s", self.test_aggregator.uid,
                         uid, file_path, line_no)
+                    self.stale.append(
+                        CoverageGap(file_path, f"line {line_no}", uid))
                     self.issues.setdefault(
                         "Out of date line coverage gap justifications",
                         set()).add(f"spec:{spacify(uid)}")
@@ -470,6 +519,7 @@ class _CoverageSummary:
                 logging.info(
                     "%s: no branch coverage gap justification for %s:%s",
                     self.test_aggregator.uid, file_path, line_branch)
+                self._add_gap(file_path, f"branch {line_branch}")
             else:
                 uid = justification[0]
                 logging.info(
@@ -484,6 +534,8 @@ class _CoverageSummary:
                         "%s: out of date branch coverage gap "
                         "justification %s for %s:%s", self.test_aggregator.uid,
                         uid, file_path, line_branch)
+                    self.stale.append(
+                        CoverageGap(file_path, f"branch {line_branch}", uid))
                     self.issues.setdefault(
                         "Out of date branch coverage gap justifications",
                         set()).add(f"spec:{spacify(uid)}")
@@ -514,6 +566,7 @@ class _CoverageSummary:
                     "%s: no function coverage gap "
                     "justification for %s() in %s", self.test_aggregator.uid,
                     function_name, file_path)
+                self._add_gap(file_path, f"function {function_name}()")
             else:
                 uid = justification[0]
                 logging.info(
@@ -862,28 +915,28 @@ class TestAggregator(BuildItem):
         content.add_grid_table(rows, [18, 8, 8, 13, 7, 13, 7, 13, 7],
                                font_size=-3)
 
-    def add_simple_coverage_achievement(self, content: TextContent,
-                                        mapper: BuildItemMapper) -> None:
-        """
-        Add the code/branch coverage achievement to the content as a simple
-        table.
-        """
-        rows: list[list[str]] = [[
-            "Target", "Configuration", "Scope", "Functions", "Status", "Lines",
-            "Status", "Branches", "Status"
-        ]]
+    def get_coverage_scopes(self,
+                            mapper: BuildItemMapper) -> list[CoverageScope]:
+        """ Get the coverage of each scope of each target and config. """
+        scopes: list[CoverageScope] = []
         for target_data in self.targets.values():
-            target = target_data["name"]
             for config_data in target_data["configs"]:
-                key = config_data["config-key"]
                 for coverage in config_data.get("coverage", []):
                     summary = _CoverageSummary(self, mapper, coverage)
-                    row = [target, key, coverage["scope"]]
+                    cells: list[str] = []
                     for kind in _COVERAGE_KINDS:
-                        row.append(summary.overall[f"{kind}-info"])
-                        row.append(summary.overall[f"{kind}-status"])
-                    rows.append(row)
-        content.add_simple_table(rows)
+                        cells.append(summary.overall[f"{kind}-info"])
+                        cells.append(summary.overall[f"{kind}-status"])
+                    error = "error" in summary.overall or bool(
+                        summary.bad_files)
+                    scopes.append(
+                        CoverageScope(self.component["ident"],
+                                      target_data["name"],
+                                      config_data["config-key"],
+                                      coverage["scope"], cells, error,
+                                      summary.get_unjustified_gaps(),
+                                      summary.stale))
+        return scopes
 
     def add_coverage_limits(self, content: TextContent,
                             mapper: BuildItemMapper) -> None:
