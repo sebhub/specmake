@@ -733,7 +733,6 @@ class DoxygenFile(DoxygenContainer):
             # domain to prefix a generated header with.
             for key in ("brief", "description", "notes"):
                 del data[key]
-            data["references"] = []
         else:
             data["prefix"] = ""
         return data

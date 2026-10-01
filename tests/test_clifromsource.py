@@ -1589,7 +1589,7 @@ def test_generate_writes_an_unspecified_header_file_item(tmp_path):
     content = (spec_dir / "if" /
                "header-header.yml").read_text(encoding="utf-8")
     assert "interface-type: unspecified-header-file" in content
-    assert "references: []" in content
+    assert "references:" not in content
     assert "prefix:" not in content
     assert "brief:" not in content
 

@@ -2072,8 +2072,8 @@ def test_an_unspecified_header_item_specifies_no_content(tmp_path):
     data = header.export()
     assert data["interface-type"] == "unspecified-header-file"
     assert data["path"] == "header.h"
-    assert data["references"] == []
-    for key in ("brief", "description", "notes", "prefix", "name"):
+    for key in ("brief", "description", "notes", "prefix", "name",
+                "references"):
         assert key not in data
 
 
