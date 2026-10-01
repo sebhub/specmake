@@ -200,7 +200,13 @@ def _dirname(_ctx: ItemGetValueContext, value: str) -> str:
     return os.path.dirname(value)
 
 
-def _relpath(_ctx: ItemGetValueContext, value: str, start: str) -> str:
+def _relpath(ctx: ItemGetValueContext,
+             value: str,
+             start: Optional[str] = None) -> str:
+    if start is None:
+        mapper = ctx.mapper
+        assert isinstance(mapper, BuildItemMapper)
+        return mapper.relpath(value)
     return os.path.relpath(value, start)
 
 

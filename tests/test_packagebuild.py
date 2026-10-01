@@ -326,6 +326,11 @@ def test_packagebuild(caplog, tmpdir, monkeypatch):
     assert c.substitute(
         "${.:/component/deployment-directory:relpath %(.:/component/prefix-directory)}"
     ) == "pkg"
+    c["absolute"] = "/a/b/c"
+    assert c.substitute("${.:/absolute:relpath}") == "/a/b/c"
+    c.mapper.base_path = "/a"
+    assert c.substitute("${.:/absolute:relpath}") == "b/c"
+    c.mapper.base_path = "/"
     assert c.substitute("${/pkg/component:/spec}") == "spec:/pkg/component"
     assert c.substitute(
         "${/pkg/issue/rtems/2189:/name}"
