@@ -4,7 +4,7 @@ Provides a command line interface to create a package workspace directory
 according to the configuration file.
 """
 
-# Copyright (C) 2020, 2025 embedded brains GmbH & Co. KG
+# Copyright (C) 2020, 2026 embedded brains GmbH & Co. KG
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -50,7 +50,8 @@ def _get_arguments(argv: list[str]) -> argparse.Namespace:
                             help="the configuration directory",
                             default=".")
         parser.add_argument("--enabled-set",
-                            help="the enabled set to configure the package",
+                            help="the comma-separated names of the enabled "
+                            "set to configure the package",
                             default="")
         parser.add_argument("--name", help="the package name", default="pkg")
         parser.add_argument("--cache-directory",
@@ -88,6 +89,10 @@ def clibuild(argv: list[str] | None = None) -> None:
         spec_directories=args.config_files,
         workspace_directory=workspace_directory,
         cache_directory=os.path.abspath(args.cache_directory),
+        enabled_set=[
+            name.strip() for name in args.enabled_set.split(",")
+            if name.strip()
+        ],
         verify_specification_format=not args.no_spec_verify)
     workspace = create_workspace(workspace_config)
 
