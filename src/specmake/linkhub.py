@@ -449,6 +449,12 @@ _ITEM_SPECIFICS = {
         _name_spec,
         _name_info_key_default,
     ),
+    "errata": (
+        "erratum",
+        _augment_requirement,
+        _name_spec,
+        _name_info_key_default,
+    ),
     "glossary/group": (
         "glossary group",
         _augment_requirement,

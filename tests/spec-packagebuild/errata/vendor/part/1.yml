@@ -1,0 +1,13 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+identifier: '1'
+links:
+- location: section 1.1
+  role: reference
+  uid: /ref/misc
+- role: reference
+  uid: /ref/errata
+title: First defect
+type: errata

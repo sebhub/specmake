@@ -67,6 +67,12 @@ class SRSBuilder(SpecDocumentBuilder):
     def get_items_of_document(self) -> list[Item]:
         return self.spec.get_related_requirements()
 
+    def get_parts_of_document(self) -> list[Item]:
+        # The errata are parts of the document and stay out of its validation
+        # table.
+        return (super().get_parts_of_document() +
+                self.spec.get_related_items_by_type("errata"))
+
     def _get_constraints(self, ctx: ItemGetValueContext) -> str:
         with self.section_content(ctx) as (content, _):
             for item in self.spec.get_related_items_by_type("constraint"):
@@ -125,7 +131,8 @@ class SRSBuilder(SpecDocumentBuilder):
                 self._add_requirements(
                     content,
                     "Design requirements and implementation constraints",
-                    ("glossary/group", "requirement/non-functional/design",
+                    ("errata", "glossary/group",
+                     "requirement/non-functional/design",
                      "requirement/non-functional/design-group",
                      "requirement/non-functional/design-target"))
                 with content.section("Security and privacy requirements"):

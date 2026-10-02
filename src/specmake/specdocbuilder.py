@@ -211,6 +211,12 @@ def _add_default_links(ctx: _Context) -> None:
                "is included by",
                is_link_enabled=functools.partial(_is_include_enabled,
                                                  ctx.spec.enabled_set))
+    _add_links(ctx,
+               "errata-resolution",
+               "Erratum",
+               "resolves",
+               "is resolved by",
+               down_name="Resolutions")
 
 
 def _add_validated_items(ctx: _Context) -> None:
@@ -323,6 +329,33 @@ def _document_constraint(ctx: _Context) -> None:
     _add_default_links(ctx)
     _add_links(ctx, "constraint", "Constraint item", "constrained by",
                "is applicable to")
+
+
+def _add_errata_documents(ctx: _Context) -> None:
+    documents: list[str] = []
+    for link in ctx.item.links_to_parents("reference"):
+        document = link.item
+        url = document.get("work-url", None)
+        if url:
+            text = ctx.mapper.format_link(document["title"], url)
+        else:
+            text = document["title"]
+        location = link.data.get("location", None)
+        if location:
+            text = f"{text}, {location}"
+        documents.append(text)
+    if documents:
+        with ctx.content.topic("Source"):
+            ctx.content.add_list(documents,
+                                 "The vendor states this erratum in:")
+
+
+def _document_errata(ctx: _Context) -> None:
+    with ctx.content.topic("Erratum"):
+        ctx.content.wrap(f"{ctx.item['identifier']}: "
+                         f"{ctx.item['title']}")
+    _add_errata_documents(ctx)
+    _add_default_links(ctx)
 
 
 def _document_requirement(ctx: _Context) -> None:
@@ -839,6 +872,7 @@ def _document_validation_by_review_of_design(ctx: _Context) -> None:
 
 _ITEM_DOCUMENTER = {
     "constraint": _document_constraint,
+    "errata": _document_errata,
     "glossary/group": _document_requirement,
     "glossary/term": _document_requirement,
     "interface/appl-config-group": _document_acfg_group,

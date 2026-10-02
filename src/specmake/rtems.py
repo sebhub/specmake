@@ -200,6 +200,27 @@ def _get_issue(ctx: ItemGetValueContext) -> str:
     return mapper.format_link(f"{database['name']} {identifier}", url)
 
 
+def _add_errata(related_items: set[Item]) -> None:
+    for item in list(related_items):
+        related_items.update(item.parents("errata-resolution"))
+
+
+def _check_errata(related_items: set[Item]) -> None:
+    gaps: set[tuple[str, str]] = set()
+    for erratum in related_items:
+        if erratum.type != "errata":
+            continue
+        for document in erratum.parents("reference"):
+            for erratum_2 in document.children("reference"):
+                if erratum_2.type == "errata" and (erratum_2
+                                                   not in related_items):
+                    gaps.add((erratum_2.uid, document.uid))
+    if gaps:
+        raise ValueError("; ".join(
+            f"erratum {uid} of {document} has no enabled resolution"
+            for uid, document in sorted(gaps)))
+
+
 class RTEMSItemCache(BuildItem):
     """ Augments the items with RTEMS-specific attributes and links. """
 
@@ -264,6 +285,8 @@ view of the specification items.""")
         """ Validate the specification using test results. """
         self.related_items = validate(self.item_cache[self["spec-root-uid"]],
                                       self._validate_using_test_results)
+        _add_errata(self.related_items)
+        _check_errata(self.related_items)
         self.related_items_by_type = get_items_by_type_map(self.related_items)
 
     def has_changed(self, link: Link) -> bool:

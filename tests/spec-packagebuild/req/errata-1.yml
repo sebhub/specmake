@@ -1,0 +1,18 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: errata
+links:
+- role: requirement-refinement
+  uid: root
+- role: errata-resolution
+  uid: /errata/vendor/part/1
+- role: errata-resolution
+  uid: /errata/vendor/part/3
+non-functional-type: design
+rationale: null
+references: []
+requirement-type: non-functional
+text: |
+  The software product shall take erratum 1 into account.
+type: requirement

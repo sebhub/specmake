@@ -1,0 +1,12 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: errata
+links:
+- role: validation
+  uid: /req/errata-2
+method: by-analysis
+references: []
+text: |
+  The erratum does not apply.
+type: validation

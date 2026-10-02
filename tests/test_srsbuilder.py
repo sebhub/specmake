@@ -24,6 +24,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import pytest
+
 from .util import build_document
 
 
@@ -1377,3 +1379,51 @@ Constraint item
 Changes
     There are no changes since Name v1.
 .. srs-constraints end"""
+
+
+def test_srsbuilder_errata(caplog, tmpdir):
+    package, text = build_document(caplog, tmpdir, "doc-ts-srs", [
+        "aggregate-test-results", "errata", "link-hub", "dummy-images",
+        "ts-srs"
+    ])
+    assert """.. _SpecErrataVendorPart1:
+
+spec:/errata/vendor/part/1
+==========================
+
+Erratum
+    1: First defect
+
+Source
+    The vendor states this erratum in:
+
+    - `The Title - More <https://foobar.org/doc_ument.pdf>`__, section 1.1
+
+    - Errata Notice
+
+Resolutions
+    This erratum is resolved by the design requirement `spec:/\u200breq/\u200berrata-1
+    </pkg/doc-ts-srs/html/requirements.html#specreqerrata1>`__.
+""" in text
+    srs = package.director["/pkg/deployment/doc-ts-srs"]
+    parts = [item.uid for item in srs.get_parts_of_document()]
+    assert "/req/errata-1" in parts
+    assert parts[-3:] == [
+        "/errata/vendor/part/1", "/errata/vendor/part/2",
+        "/errata/vendor/part/3"
+    ]
+    assert """Erratum
+    This design requirement resolves the erratum
+    `spec:/\u200berrata/\u200bvendor/\u200bpart/\u200b2
+    </pkg/doc-ts-srs/html/requirements.html#specerratavendorpart2>`__.
+""" in text
+
+
+def test_srsbuilder_errata_gap(caplog, tmpdir):
+    with pytest.raises(ValueError,
+                       match="erratum /errata/vendor/part/2 of /ref/misc "
+                       "has no enabled resolution"):
+        build_document(caplog, tmpdir, "doc-ts-srs", [
+            "aggregate-test-results", "errata", "errata-gap", "link-hub",
+            "dummy-images", "ts-srs"
+        ])

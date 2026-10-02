@@ -1,0 +1,11 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+identifier: '2'
+links:
+- location: section 1.2
+  role: reference
+  uid: /ref/misc
+title: Second defect
+type: errata
