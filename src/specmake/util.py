@@ -36,6 +36,9 @@ from typing import Callable, Iterable, Optional
 
 from specitems import ItemMapper, get_arguments
 
+# The PDF metadata of a matplotlib figure without a creation date.
+PDF_METADATA = {"CreationDate": None}
+
 
 def _command_argv(argv: list[str] | None) -> list[str]:
     return sys.argv if argv is None else argv

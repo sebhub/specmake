@@ -51,6 +51,9 @@ def test_perfimages(caplog, tmpdir):
         f"{tmpdir}/pkg/perf-images/a-build-config-key-rtems-req-perf.pdf",
         f"{tmpdir}/pkg/perf-images/a-build-config-key-rtems-req-perf.png"
     ]
+    for path in director[uid].files():
+        if path.endswith(".pdf"):
+            assert b"CreationDate" not in Path(path).read_bytes()
 
 
 class _DeadProcess:

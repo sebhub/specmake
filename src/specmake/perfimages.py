@@ -35,6 +35,7 @@ from specitems import Item
 from .directorystate import DirectoryState
 from .pkgitems import PackageBuildDirector
 from .testaggregator import TestAggregator
+from .util import PDF_METADATA
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.WARNING)
@@ -109,9 +110,6 @@ def _freedman_draconis(scale: float, env_data: dict) -> int:
         return sample_count
 
 
-_PDF_METADATA = {"creationDate": None}
-
-
 def _histogram(title: str, base: str, env_data: dict) -> None:
     scale, unit = _scale_and_unit(env_data["q2"])
     scaled_samples = list(scale * sample for sample in env_data["samples"])
@@ -143,7 +141,7 @@ def _histogram(title: str, base: str, env_data: dict) -> None:
         plt.text(quartile, (2 * i + 1) * ymax / 8, f"Q{i + 1}")
     fig.tight_layout()
     plt.savefig(f"{base}.png")
-    plt.savefig(f"{base}.pdf", metadata=_PDF_METADATA)
+    plt.savefig(f"{base}.pdf", metadata=PDF_METADATA)
     plt.close()
 
 
@@ -164,7 +162,7 @@ def _boxplot(title: str, base: str, max_median: float,
     axes.boxplot(scaled_samples)
     fig.tight_layout()
     plt.savefig(f"{base}.png")
-    plt.savefig(f"{base}.pdf", metadata=_PDF_METADATA)
+    plt.savefig(f"{base}.pdf", metadata=PDF_METADATA)
     plt.close()
 
 

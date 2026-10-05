@@ -48,14 +48,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from .testoutputparser import augment_report  # noqa: E402
-from .util import command_arguments  # noqa: E402
+from .util import PDF_METADATA, command_arguments  # noqa: E402
 
 JSON_BEGIN = "*** BEGIN OF JSON ***"
 JSON_END = "*** END OF JSON ***"
 
 _DPI = 100
 _WIDTH_INCHES = 12.0
-_METADATA = {"pdf": {"CreationDate": None}, "svg": {"Date": None}}
+_METADATA = {"pdf": PDF_METADATA, "svg": {"Date": None}}
 _STEM_LENGTH = 100
 
 Samples = dict[tuple[str, str], list[float]]

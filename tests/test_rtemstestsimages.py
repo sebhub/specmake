@@ -52,3 +52,6 @@ def test_rtemstestsimages(caplog, tmpdir):
         f"{tmpdir}/pkg/rtems-tests-images/a-build-config-key-build-testsuites-tmtests-tmtimer01.pdf",
         f"{tmpdir}/pkg/rtems-tests-images/a-build-config-key-build-testsuites-tmtests-tmtimer01.png"
     ]
+    for path in director[uid].files():
+        if path.endswith(".pdf"):
+            assert b"CreationDate" not in Path(path).read_bytes()

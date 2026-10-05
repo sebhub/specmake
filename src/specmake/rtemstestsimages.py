@@ -39,6 +39,7 @@ from specitems import Item
 from .directorystate import DirectoryState
 from .pkgitems import PackageBuildDirector
 from .testaggregator import TestAggregator
+from .util import PDF_METADATA
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.WARNING)
@@ -52,7 +53,7 @@ def _savefig(fig: plt.Figure, axes: plt.Axes, base: str) -> list[str]:
     axes.legend(loc="best")
     fig.tight_layout()
     plt.savefig(f"{base}.png")
-    plt.savefig(f"{base}.pdf")
+    plt.savefig(f"{base}.pdf", metadata=PDF_METADATA)
     return [f"{base}.png", f"{base}.pdf"]
 
 
