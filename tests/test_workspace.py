@@ -210,6 +210,70 @@ def test_workspace_repo_default(tmpdir):
     assert repo.lazy_verify()
 
 
+def test_workspace_repo_git_commit_ref(tmpdir):
+    _, workspace = _create_buildspace(
+        tmpdir, ["spec-pkg-wk/repo/archive", "spec-pkg-wk/repo/default"])
+    workspace.director.package.item["refs"] = {"repo": "main"}
+    wk_repo = workspace.director["/repo"]
+    head = "40abab3c7aca7f38d06f339d784fa08178588f47"
+    assert wk_repo.substitute(
+        "${.:/git-commit:%(.:/component/refs/repo)}") == head
+    assert wk_repo.substitute(
+        "${.:/git-commit:%(.:/component/refs/repo),default=HEAD}") == head
+    assert wk_repo.substitute(
+        "${.:/git-commit:%(.:/component/refs/other),default=HEAD}") == head
+    with pytest.raises(ValueError):
+        wk_repo.substitute("${.:/git-commit:%(.:/component/refs/other)}")
+    with pytest.raises(ValueError):
+        wk_repo.substitute(
+            "${.:/git-commit:%(no-such-item:/refs/repo),default=HEAD}")
+
+
+def test_workspace_repo_git_commit_match_head(tmpdir):
+    _, workspace = _create_buildspace(
+        tmpdir, ["spec-pkg-wk/repo/archive", "spec-pkg-wk/repo/default"])
+    wk_repo = workspace.director["/repo"]
+    source = os.path.join(tmpdir, "source", "repo")
+    status = run_command(["git", "branch", "side"], source)
+    assert status == 0
+    status = run_command([
+        "git", "-c", "user.name=A", "-c", "user.email=a@b", "commit",
+        "--allow-empty", "--no-verify", "-m", "x"
+    ], source)
+    assert status == 0
+    head = _git_commit(source, "HEAD")
+    assert wk_repo.substitute("${.:/git-commit:main,match-head=1}") == head
+    with pytest.raises(ValueError, match="side.*does not match HEAD"):
+        wk_repo.substitute("${.:/git-commit:side,match-head=1}")
+    assert wk_repo.substitute("${.:/git-commit:side,match-head=0}") != head
+    assert wk_repo.substitute("${.:/git-commit:side}") != head
+    with pytest.raises(ValueError,
+                       match="argument 'match-head' has the value 'yes'"):
+        wk_repo.substitute("${.:/git-commit:main,match-head=yes}")
+
+
+def test_workspace_repo_git_commit_escaped_ref(tmpdir):
+    _, workspace = _create_buildspace(
+        tmpdir, ["spec-pkg-wk/repo/archive", "spec-pkg-wk/repo/default"])
+    wk_repo = workspace.director["/repo"]
+    source = os.path.join(tmpdir, "source", "repo")
+    for ref in ("a,b", "a=b"):
+        status = run_command(["git", "branch", ref], source)
+        assert status == 0
+    status = run_command([
+        "git", "-c", "user.name=A", "-c", "user.email=a@b", "commit",
+        "--allow-empty", "--no-verify", "-m", "x"
+    ], source)
+    assert status == 0
+    status = run_command(["git", "branch", "-f", "a,b"], source)
+    assert status == 0
+    head = _git_commit(source, "HEAD")
+    base = _git_commit(source, "HEAD~1")
+    assert wk_repo.substitute("${.:/git-commit:a\\cb}") == head
+    assert wk_repo.substitute("${.:/git-commit:a\\eb}") == base
+    assert wk_repo.substitute("${.:/git-commit:a\\cb,match-head=1}") == head
+
+
 def test_workspace_repo_clone_depth(tmpdir):
     buildspace, _ = _create_buildspace(
         tmpdir, ["spec-pkg-wk/repo/archive", "spec-pkg-wk/repo/clone-depth"])

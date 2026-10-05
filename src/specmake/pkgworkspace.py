@@ -66,6 +66,16 @@ def _git_commit(repository: str, commit: Optional[str] = None) -> str:
     return stdout[0].strip()
 
 
+def _is_missing_attribute(err: BaseException | None) -> bool:
+    while err is not None:
+        if isinstance(err, ValueError) and str(
+                err).startswith("cannot get value for") and isinstance(
+                    err.__cause__, KeyError):
+            return True
+        err = err.__cause__
+    return False
+
+
 def _verify_specification_format(item_cache: ItemCache, verify: bool):
     if verify:
         logger = logging.getLogger()
@@ -477,7 +487,27 @@ class WorkspaceRepository(_WorkspaceItem):
         self._git_clone(buildspace_item)
 
     def _git_commit(self, ctx: ItemGetValueContext) -> str:
-        return _git_commit(self["directory"], ctx.args)
+        args, kwargs = ctx.unpack_args_dict()
+        ref = args[0] if args else None
+        default = kwargs.get("default")
+        if ref is not None:
+            try:
+                ref = ctx.substitute(ref)
+            except ValueError as err:
+                if default is None or not _is_missing_attribute(err):
+                    raise
+                ref = default
+        if not ref:
+            ref = default
+        directory = self["directory"]
+        commit = _git_commit(directory, ref)
+        if ctx.arg_bool("match-head"):
+            head = _git_commit(directory)
+            if commit != head:
+                raise ValueError(f"{self.uid}: commit {commit} of '{ref}' "
+                                 f"does not match HEAD {head} of "
+                                 f"'{directory}'")
+        return commit
 
     def _git_commit_head(self, _ctx: ItemGetValueContext) -> str:
         return _git_commit(self["directory"])

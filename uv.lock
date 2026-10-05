@@ -2452,7 +2452,7 @@ dev = [
 requires-dist = [
     { name = "gcovr", specifier = ">=8.6" },
     { name = "matplotlib", specifier = ">=3.10.1" },
-    { name = "specitems", specifier = ">=1.7.0" },
+    { name = "specitems", specifier = ">=1.7.7" },
     { name = "spectestrunner", specifier = ">=0.9.3" },
     { name = "specware", specifier = ">=1.3.14" },
     { name = "sphinx", specifier = ">=8.2.3" },
