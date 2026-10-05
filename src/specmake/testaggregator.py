@@ -210,6 +210,23 @@ class CoverageScope(NamedTuple):
     stale: list[CoverageGap]
 
 
+class NotValidatedRequirement(NamedTuple):
+    """ Represents a functional requirement which is not validated. """
+    component: str
+    uid: str
+
+
+class RetriedProgram(NamedTuple):
+    """
+    Represents a test program with failed attempts before its last run.
+    """
+    component: str
+    target: str
+    config: str
+    program: str
+    failed_attempts: int
+
+
 class _CoverageSummary:
     # pylint: disable=too-many-instance-attributes
 
@@ -612,6 +629,13 @@ class _CoverageSummary:
         self._add_file_stats(mapper, stats, file_path, spot_to_justification)
 
 
+def _add_retried_program(config_data: _Data, report: _Data) -> None:
+    failed_attempts = len(report.get("failed-attempts", []))
+    if failed_attempts:
+        config_data["retried-programs"].append(
+            (os.path.basename(report["executable"]), failed_attempts))
+
+
 def _limits_order(area_and_limits: tuple) -> str:
     area = area_and_limits[0]
     if area == "overall":
@@ -677,6 +701,7 @@ class TestAggregator(BuildItem):
                 "link": self._make_report_link(label),
                 "name": config["name"],
                 "other-programs": {},
+                "retried-programs": [],
                 "report-file-base": f"{target_key}-{config_key}",
                 "target": target_data,
                 "test-programs": {},
@@ -739,6 +764,7 @@ class TestAggregator(BuildItem):
         else:
             target_data["test-runner-description"] = description
         for report in test_log_data["reports"]:
+            _add_retried_program(config_data, report)
             try:
                 test_suite = report["test-suite"]
                 test_suite_item = spec.name_to_item[test_suite["name"]]
@@ -937,6 +963,28 @@ class TestAggregator(BuildItem):
                                       summary.get_unjustified_gaps(),
                                       summary.stale))
         return scopes
+
+    def get_not_validated_requirements(self) -> list[NotValidatedRequirement]:
+        """
+        Get the related pre-qualified functional requirements without
+        validation.
+        """
+        return [
+            NotValidatedRequirement(self.component["ident"], item.uid)
+            for item in sorted(self.spec.get_related_requirements())
+            if item.type.startswith("requirement/functional/")
+            and item.view["pre-qualified"] and not item.view["validated"]
+        ]
+
+    def get_retried_programs(self) -> list[RetriedProgram]:
+        """ Get the test programs with failed attempts. """
+        return [
+            RetriedProgram(self.component["ident"], target_data["name"],
+                           config_data["config-key"], *retried)
+            for target_data in self.targets.values()
+            for config_data in target_data["configs"]
+            for retried in sorted(config_data["retried-programs"])
+        ]
 
     def add_coverage_limits(self, content: TextContent,
                             mapper: BuildItemMapper) -> None:

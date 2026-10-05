@@ -10,6 +10,14 @@
       "executable": "tmfine01.exe",
       "executable-sha512": "SyO4yI1eU2uWwhuffju4ccq4M_iveEMNHOz75_s0sfSJIx15cLpmRgl_XYb0xe_NMnQxnDSrYRSRb357_5mHKA==",
       "execution-duration-in-seconds": 48.17338562011719,
+      "failed-attempts": [
+        {
+          "duration": 70.0,
+          "error": "timeout",
+          "executable": "tmfine01.exe",
+          "output": []
+        }
+      ],
       "info": {
         "build": [
           "RTEMS_SMP"
