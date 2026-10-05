@@ -39,6 +39,30 @@ from specitems import ItemMapper, get_arguments
 # The PDF metadata of a matplotlib figure without a creation date.
 PDF_METADATA = {"CreationDate": None}
 
+_ENVIRONMENTS = {"HotCache": 0, "FullCache": 1, "DirtyCache": 2}
+
+
+def variant_order(variant: str) -> tuple[int, float, str]:
+    """
+    Returns the sort key of the runtime measurement variant.
+
+    Numbers come first in ascending order.  The environments HotCache,
+    FullCache, DirtyCache and Load/1, Load/2, and so on follow.  Each other
+    variant comes last in the order of its name.
+    """
+    try:
+        return (0, float(variant), variant)
+    except ValueError:
+        pass
+    if variant in _ENVIRONMENTS:
+        return (1, float(_ENVIRONMENTS[variant]), variant)
+    if variant.startswith("Load/"):
+        try:
+            return (1, float(variant[5:]) + 2.0, variant)
+        except ValueError:
+            pass
+    return (2, 0.0, variant)
+
 
 def _command_argv(argv: list[str] | None) -> list[str]:
     return sys.argv if argv is None else argv

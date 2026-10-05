@@ -49,6 +49,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from .testoutputparser import augment_report  # noqa: E402
 from .util import PDF_METADATA, command_arguments  # noqa: E402
+from .util import variant_order  # noqa: E402
 
 JSON_BEGIN = "*** BEGIN OF JSON ***"
 JSON_END = "*** END OF JSON ***"
@@ -229,26 +230,8 @@ def load_samples(source: str) -> Samples:
     }
 
 
-_ENVIRONMENTS = {"HotCache": 0, "FullCache": 1, "DirtyCache": 2}
-
-
-def _variant_key(variant: str) -> tuple[int, float, str]:
-    try:
-        return (0, float(variant), variant)
-    except ValueError:
-        pass
-    if variant in _ENVIRONMENTS:
-        return (1, float(_ENVIRONMENTS[variant]), variant)
-    if variant.startswith("Load/"):
-        try:
-            return (1, float(variant[5:]) + 2.0, variant)
-        except ValueError:
-            pass
-    return (2, 0.0, variant)
-
-
 def _variants_are_numbers(variants: list[str]) -> bool:
-    return all(_variant_key(variant)[0] == 0 for variant in variants)
+    return all(variant_order(variant)[0] == 0 for variant in variants)
 
 
 def _names_and_variants(samples: Samples) -> dict[str, list[str]]:
@@ -256,7 +239,7 @@ def _names_and_variants(samples: Samples) -> dict[str, list[str]]:
     for name, variant in samples:
         names.setdefault(name, []).append(variant)
     for variants in names.values():
-        variants.sort(key=_variant_key)
+        variants.sort(key=variant_order)
     return dict(sorted(names.items()))
 
 
@@ -438,7 +421,7 @@ def _draw_ratio_panel(axes: Any, name: str,
             for _, items in compared
             for item in items if item.name == name
         },
-        key=_variant_key)
+        key=variant_order)
     numbers = _variants_are_numbers(variants)
     positions = {variant: index for index, variant in enumerate(variants)}
     selections = [(label, [item for item in items if item.name == name])

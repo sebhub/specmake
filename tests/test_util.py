@@ -37,7 +37,7 @@ from specware import run_command
 
 from specmake import (command_arguments, command_name, duration,
                       get_build_arguments, copy_file, copy_files, now_utc,
-                      write_json)
+                      variant_order, write_json)
 from specmake.cliaddpatches import cliaddpatches
 
 from .util import get_and_clear_log
@@ -189,3 +189,14 @@ def test_the_command_vector_falls_back_to_the_process(monkeypatch):
     assert command_name(None) == "specmake"
     assert command_arguments(["other", "-x"]) == ["-x"]
     assert command_name(["/usr/bin/other", "-x"]) == "other"
+
+
+def test_variant_order():
+    variants = [
+        "Other", "Load/x", "Load/10", "Load/2", "DirtyCache", "FullCache",
+        "HotCache", "10", "2"
+    ]
+    assert sorted(variants, key=variant_order) == [
+        "2", "10", "HotCache", "FullCache", "DirtyCache", "Load/2", "Load/10",
+        "Load/x", "Other"
+    ]

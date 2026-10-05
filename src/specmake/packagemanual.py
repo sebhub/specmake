@@ -44,6 +44,7 @@ from .packagechanges import PackageChanges
 from .testaggregator import CoverageGap, CoverageScope, TestAggregator
 from .testreporter import TestReporter
 from .testrunner import TestLog
+from .util import variant_order
 
 _EnvToStats = dict[str, tuple[float, float, float]]
 _ItemToEnvStats = dict[str, _EnvToStats]
@@ -63,16 +64,6 @@ def _gather_runtime_performance_items(items: set[Item], item: Item) -> None:
         items.add(item)
     for child in item.children("requirement-refinement"):
         _gather_runtime_performance_items(items, child)
-
-
-def _environment_order(name: str) -> int:
-    if name == "HotCache":
-        return 0
-    if name == "FullCache":
-        return 1
-    if name == "DirtyCache":
-        return 2
-    return int(name[5:]) + 2
 
 
 def _add_licenses(content: TextContent, deployment_directory: str,
@@ -111,7 +102,7 @@ def _get_performance_environments(
     for item_to_env_stats in measurements_by_variant.values():
         for env_to_stats in item_to_env_stats.values():
             all_envs.update(env_to_stats.keys())
-    return sorted(all_envs, key=_environment_order)
+    return sorted(all_envs, key=variant_order)
 
 
 class PackageManualBuilder(DocumentBuilder):

@@ -35,24 +35,17 @@ from specitems import Item
 from .directorystate import DirectoryState
 from .pkgitems import PackageBuildDirector
 from .testaggregator import TestAggregator
-from .util import PDF_METADATA
+from .util import PDF_METADATA, variant_order
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
-def environment_order(env_name_data: dict) -> int:
+def environment_order(env_name_data: tuple) -> tuple[int, float, str]:
     """
     Returns the environment order key for the environment name and data pair.
     """
-    name = env_name_data[0]
-    if name == "HotCache":
-        return 0
-    if name == "FullCache":
-        return 1
-    if name == "DirtyCache":
-        return 2
-    return int(name[5:]) + 2
+    return variant_order(env_name_data[0])
 
 
 def _worker(work_queue: multiprocessing.Queue, build_item_uid: str):
