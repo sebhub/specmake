@@ -1110,6 +1110,14 @@ Support the package build.
 
 - 1 stale gap item
 
+- 4 functional requirements are not validated
+
+<a id="PackageSummarySparcGr712rcSmp4Warnings"></a>
+
+## ⚠️ Warnings
+
+- 1 test program has failed attempts
+
 <a id="PackageSummarySparcGr712rcSmp4TestOverview"></a>
 
 ## Test overview
@@ -1124,27 +1132,40 @@ The table counts the test programs.
 
 ## Unexpected failures
 
- | Component           | Target          | Item                                      |
- | ------------------- | --------------- | ----------------------------------------- |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/test-program                       |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smplock01      |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smpopenmp01    |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/sptests/sptimecounter02 |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmcontext01     |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmfine01        |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmtimer01       |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action                         |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action-2                       |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/perf-no-results                |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/target-a                           |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-fail                 |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-run                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-unit                 |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-xfail                |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/performance-no-clock-0        |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-fail               |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-pass               |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-xfail              |
+ | Component           | Target          | Item                                      | Reason                                                                           |
+ | ------------------- | --------------- | ----------------------------------------- | -------------------------------------------------------------------------------- |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/test-program                       |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smplock01      |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smpopenmp01    |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/sptests/sptimecounter02 |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmcontext01     |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmfine01        |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmtimer01       |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action                         | There are no test results available for this target.                             |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action-2                       |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/perf-no-results                |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/target-a                           | Insufficient overall line coverage. Unused code coverage justifications.         |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-fail                 |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-run                  |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-unit                 |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-xfail                |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/performance-no-clock-0        |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-fail               |                                                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-pass               | The BSP has not the expected name. The tools version has not the expected value. |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-xfail              |                                                                                  |
+
+<a id="PackageSummarySparcGr712rcSmp4NotValidatedRequirements"></a>
+
+## Not validated requirements
+
+The table lists the functional requirements without a successful validation.
+
+ | Component           | Requirement                   |
+ | ------------------- | ----------------------------- |
+ | sparc/gr712rc/smp/4 | /rtems/req/action             |
+ | sparc/gr712rc/smp/4 | /rtems/req/action-2           |
+ | sparc/gr712rc/smp/4 | /rtems/req/define-not-defined |
+ | sparc/gr712rc/smp/4 | /rtems/req/func               |
 
 <a id="PackageSummarySparcGr712rcSmp4Coverage"></a>
 
@@ -1195,6 +1216,16 @@ The table counts the test programs.
  | ----------------------------------- | ------------------- | ------------- | ---------------- | ----- | --------------------------------- | ------------ |
  | /verification/code-coverage-gap/gap | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Scope | cpukit/score/src/threadqenqueue.c | branch 375/0 |
  | /verification/code-coverage-gap/gap | sparc/gr712rc/smp/4 | Name Target A | build-config-key | Scope | cpukit/score/src/threadqenqueue.c | line 399     |
+
+<a id="PackageSummarySparcGr712rcSmp4RetriedTestPrograms"></a>
+
+## Retried test programs
+
+The table lists the test programs which the test runner ran again after a failed attempt.
+
+ | Component           | Target        | Configuration    | Program      | Failed attempts |
+ | ------------------- | ------------- | ---------------- | ------------ | --------------- |
+ | sparc/gr712rc/smp/4 | Name Target A | build-config-key | tmfine01.exe | 1               |
 
 <a id="PackageSummarySparcGr712rcSmp4Repositories"></a>
 
@@ -1262,9 +1293,12 @@ def test_packagesummary_sections(monkeypatch):
     rows = [["Component", "Target", "Configuration", "Scope", "File", "Spot"]]
     notes: list[str] = []
     specmake.packagemanual._add_gap_rows(rows, notes, scope, scope.gaps, False)
-    specmake.packagemanual._add_status(content, reports, [scope])
+    specmake.packagemanual._add_status(content, reports, [scope], [])
+    specmake.packagemanual._add_warnings(content, [])
     specmake.packagemanual._add_test_overview(content, reports)
     specmake.packagemanual._add_unexpected_failures(content, reports)
+    specmake.packagemanual._add_not_validated(content, [])
+    specmake.packagemanual._add_retried_programs(content, [])
     specmake.packagemanual._add_coverage(content, [])
     specmake.packagemanual._add_gap_section(content, "Gaps", rows, notes)
     specmake.packagemanual._add_gap_section(content, "Empty", rows[:1], [])
@@ -1272,7 +1306,7 @@ def test_packagesummary_sections(monkeypatch):
 
 # ✅ Passed
 
-There are no unexpected test failures.  All coverage scopes meet their limits.  There are no stale gap items.
+There are no unexpected test failures.  All coverage scopes meet their limits.  There are no stale gap items.  All functional requirements are validated.
 
 <a id="TestOverview"></a>
 

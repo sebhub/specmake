@@ -1,0 +1,24 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes: {}
+    description: |
+      This set of attributes contains the reasons of the unexpected test
+      failures by target.
+    generic-attributes:
+      description: |
+        The key shall be the UID of the target.
+      key-spec-type: str
+      value-spec-type: pkg-test-failure-reasons-by-item
+    mandatory-attributes: none
+spec-name: Test Failure Reasons by Target
+spec-type: pkg-test-failure-reasons
+type: spec

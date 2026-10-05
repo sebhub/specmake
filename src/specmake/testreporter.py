@@ -26,6 +26,7 @@
 
 from contextlib import contextmanager
 import functools
+import itertools
 import os
 import re
 from typing import Any, Callable, Iterable, Iterator, NamedTuple
@@ -483,14 +484,36 @@ def _add_test_output(ctx: _TestContext, report: dict) -> None:
         _add_output(ctx, report)
 
 
+def _get_reasons(target_uid: str, item_text: tuple[Item, str],
+                 by_config: dict[str, set[str]]) -> set[str]:
+    # The coverage issues of a target map an issue to the scopes.  The errors
+    # of a test map a configuration to the error texts.  The other failures
+    # state their reason in the text.
+    if item_text[0].uid == target_uid:
+        return set(by_config)
+    if by_config:
+        return set(itertools.chain.from_iterable(by_config.values()))
+    return {item_text[1]}
+
+
 def _save_failures(destination: DirectoryState, ctx: _TestContext) -> None:
     failures = ctx.unexpected_failures
     target_to_failures: dict[str, list[str]] = {}
+    target_to_reasons: dict[str, dict[str, list[str]]] = {}
     for target_uid, by_test in sorted(failures.items()):
         target_to_failures[target_uid] = [
             item_text[0].uid for item_text in sorted(by_test.keys())
         ]
+        reasons: dict[str, set[str]] = {}
+        for item_text, by_config in by_test.items():
+            reasons.setdefault(item_text[0].uid, set()).update(
+                _get_reasons(target_uid, item_text, by_config))
+        target_to_reasons[target_uid] = {
+            uid: sorted(texts)
+            for uid, texts in sorted(reasons.items())
+        }
     destination["unexpected-test-failures"] = target_to_failures
+    destination["unexpected-test-failure-reasons"] = target_to_reasons
     destination["test-program-counts"] = ctx.program_counts
 
 

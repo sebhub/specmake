@@ -25,8 +25,11 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+
+from specmake import testaggregator
 
 from .util import create_package
 
@@ -44,3 +47,42 @@ def test_testaggregator_no_perf_limits(caplog, tmpdir):
     uid = "/pkg/steps/aggregate-test-results"
     with pytest.raises(ValueError, match="has no performance runtime limits"):
         package.director.build_package(only=[uid])
+
+
+def test_add_retried_program():
+    config_data = {"retried-programs": []}
+    testaggregator._add_retried_program(config_data, {"executable": "a/b.exe"})
+    testaggregator._add_retried_program(config_data, {
+        "executable": "a/c.exe",
+        "failed-attempts": []
+    })
+    testaggregator._add_retried_program(config_data, {
+        "executable": "a/d.exe",
+        "failed-attempts": [{}, {}]
+    })
+    assert config_data["retried-programs"] == [("d.exe", 2)]
+
+
+class _Requirement:
+
+    def __init__(self, uid, type_name, pre_qualified, validated):
+        self.uid = uid
+        self.type = type_name
+        self.view = {"pre-qualified": pre_qualified, "validated": validated}
+
+    def __lt__(self, other):
+        return self.uid < other.uid
+
+
+def test_get_not_validated_requirements():
+    requirements = [
+        _Requirement("/c", "requirement/functional/function", True, False),
+        _Requirement("/b", "requirement/functional/function", False, False),
+        _Requirement("/a", "requirement/functional/action", True, True),
+        _Requirement("/d", "requirement/non-functional/quality", True, False)
+    ]
+    aggregator = SimpleNamespace(
+        component={"ident": "i"},
+        spec=SimpleNamespace(get_related_requirements=lambda: requirements))
+    assert testaggregator.TestAggregator.get_not_validated_requirements(
+        aggregator) == [testaggregator.NotValidatedRequirement("i", "/c")]

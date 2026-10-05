@@ -51,6 +51,16 @@ test-program-counts:
     unexpected-failures: 7
     unexpected-passes: 1
 type: pkg
+unexpected-test-failure-reasons:
+  /rtems/target-a:
+    /rtems/req/action:
+    - There are no test results available for this target.
+    /rtems/target-a:
+    - Insufficient overall line coverage
+    - Unused code coverage justifications
+    /testsuites/test-suite-pass:
+    - The BSP has not the expected name.
+    - The tools version has not the expected value.
 unexpected-test-failures:
   /rtems/target-a:
   - /build/test-program

@@ -2233,6 +2233,23 @@ the tests it runs."""
             "unexpected-passes": 0
         }
     }
+    # Each unexpected failure has its reasons: the errors of a test, the
+    # missing test results of a validation, and the coverage issues of a
+    # target
+    reasons = director["/pkg/deployment/doc-djf-tr"][
+        "unexpected-test-failure-reasons"]["/rtems/target-a"]
+    assert list(reasons) == director["/pkg/deployment/doc-djf-tr"][
+        "unexpected-test-failures"]["/rtems/target-a"]
+    assert reasons["/rtems/val/test-case-xfail"] == [
+        "The test duration has not the expected value."
+    ]
+    assert reasons["/rtems/req/action"] == [
+        "There are no test results available for this target."
+    ]
+    assert reasons["/rtems/target-a"][:2] == [
+        "Coverage limits met only with an excluded test, and no target "
+        "gives complete evidence", "Excluded tests which no other target ran"
+    ]
     assert director["/pkg/deployment/doc-djf-tr-2"]["test-program-counts"] == {
         "/rtems/target-b": {
             "expected-failures": 0,
