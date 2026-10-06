@@ -2,7 +2,13 @@ SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
 - Copyright (C) 2023 embedded brains GmbH & Co. KG
 enabled-by: true
-links: []
+links:
+- role: test-condition
+  uid: condition-environment
+- role: test-condition
+  uid: condition-procedure
+- role: test-condition
+  uid: condition-disabled
 test-actions:
 - action-brief: |
     Brief.

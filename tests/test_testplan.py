@@ -750,14 +750,14 @@ For the test pass - fail criteria see section :ref:`TestPassFailCriteria`.
 Environmental needs
 -------------------
 
-There are no specific environmental needs.
+The environment.
 
 .. _SpecRtemsValTestCaseSpecialProcedureConstraints:
 
 Special procedure constraints
 -----------------------------
 
-There are no special procedure constraints applicable.
+The procedure constraint.
 
 .. _SpecRtemsValTestCaseInterfaceDependencies:
 
@@ -902,7 +902,7 @@ For the test pass - fail criteria see section :ref:`TestPassFailCriteria`.
 Environmental needs
 -------------------
 
-There are no specific environmental needs.
+The environment.
 
 .. _SpecRtemsValTestCasePassSpecialProcedureConstraints:
 
@@ -1165,6 +1165,13 @@ building the package and captures the output:
 .. code-block:: none
 
     foo --on 1 bar ${test_program}
+
+.. _SpecRtemsValProcedure:
+
+Procedure
+=========
+
+The procedure.
 .. test-procedures end
 
 .. other-validations begin

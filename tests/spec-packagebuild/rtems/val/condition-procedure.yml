@@ -1,0 +1,13 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: test-condition-procedure
+  uid: procedure
+- role: test-condition-procedure
+  uid: procedure-disabled
+section: procedure-constraint
+text: |
+  The procedure constraint.
+type: test-condition

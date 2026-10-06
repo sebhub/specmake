@@ -32,6 +32,27 @@ from .linkhub import LinkHub, spec_label
 from .specdocbuilder import SpecDocumentBuilder
 from .testrunner import TestRunner
 
+# The section type of a test condition names no output and no pass - fail
+# section, so these sections keep their text.
+_TEST_CONDITION_SECTIONS = (
+    ("input", "Input specifications", """The test case starts execution in the
+system state defined by the test suite runner and the test suite configuration.
+All other inputs required by the test case are produced by the test case code
+itself."""),
+    ("output", "Output specifications",
+     "For the output specifications see section "
+     ":ref:`TestPassFailCriteria`."),
+    ("pass-fail", "Test pass - fail criteria",
+     "For the test pass - fail criteria see section "
+     ":ref:`TestPassFailCriteria`."),
+    ("environment", "Environmental needs",
+     "There are no specific environmental needs."),
+    ("procedure-constraint", "Special procedure constraints",
+     "There are no special procedure constraints applicable."),
+    ("interface-dependency", "Interface dependencies",
+     "There are no specific interface dependencies present."),
+)
+
 
 def _get_test_case_function(item: Item, ident: str) -> str:
     if item["test-header"] is None:
@@ -269,32 +290,27 @@ contained in the file
                 self._add_test_suite_memberships(content, item)
                 self._add_test_results(content, "test case", item)
                 self.add_item_changes(content, item)
-            with content.section("Input specifications"):
-                content.add("""The test case starts execution in the
-system state defined by the test suite runner and the test suite configuration.
-All other inputs required by the test case are produced by the test case code
-itself.""")
-            with content.section("Output specifications"):
-                content.add("For the output specifications see section "
-                            ":ref:`TestPassFailCriteria`.")
-            with content.section("Test pass - fail criteria"):
-                content.add("For the test pass - fail criteria see section "
-                            ":ref:`TestPassFailCriteria`.")
-            with content.section("Environmental needs"):
-                content.add("There are no specific environmental needs.")
-            with content.section("Special procedure constraints"):
-                content.add(
-                    "There are no special procedure constraints applicable.")
-            with content.section("Interface dependencies"):
-                content.add(
-                    "There are no specific interface dependencies present.")
+            conditions = list(item.parents("test-condition"))
+            for key, title, default in _TEST_CONDITION_SECTIONS:
+                with content.section(title):
+                    matches = [
+                        condition for condition in conditions
+                        if condition["section"] == key
+                    ]
+                    for condition in matches:
+                        self.wrap(content, condition, condition["text"])
+                    if not matches:
+                        content.add(default)
 
-    def _get_test_cases(self, _ctx: ItemGetValueContext) -> str:
-        content = self.mapper.create_content(section_level=2)
+    def _gather_test_cases(self) -> list[Item]:
         test_cases: list[Item] = []
         for item in self._gather_test_suites():
             gather_test_cases(item, test_cases)
-        for item in sorted(set(test_cases)):
+        return sorted(set(test_cases))
+
+    def _get_test_cases(self, _ctx: ItemGetValueContext) -> str:
+        content = self.mapper.create_content(section_level=2)
+        for item in self._gather_test_cases():
             with self.mapper.scope(item):
                 self._add_test_case(content, item)
         return content.join()
@@ -310,6 +326,16 @@ itself.""")
             with test_runner.component_scope(self.component):
                 with content.section(test_runner["name"], label=label):
                     content.add(test_runner.describe())
+        procedures = {
+            procedure
+            for test_case in self._gather_test_cases()
+            for condition in test_case.parents("test-condition")
+            for procedure in condition.parents("test-condition-procedure")
+        }
+        for procedure in sorted(procedures):
+            with content.section(procedure["name"],
+                                 label=spec_label(procedure)):
+                self.wrap(content, procedure, procedure["text"])
         return content.join()
 
     def _add_other_validation(self, content: TextContent, method: str) -> None:

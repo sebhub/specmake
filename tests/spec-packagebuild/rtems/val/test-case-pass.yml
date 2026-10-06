@@ -2,7 +2,9 @@ SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
 - Copyright (C) 2025 embedded brains GmbH & Co. KG
 enabled-by: true
-links: []
+links:
+- role: test-condition
+  uid: condition-environment
 test-actions: []
 test-brief: |
   Brief.
