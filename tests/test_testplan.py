@@ -1222,3 +1222,11 @@ The following items are not specifically validated by a test:
 - `spec:/​rtems/​req/​perf
   </pkg/doc-ts-srs/html/requirements.html#specrtemsreqperf>`__
 .. not-validated-by-test end"""
+
+    # The test plan registers each condition and each procedure which it
+    # presents as a part of the document.
+    test_plan = director["/pkg/deployment/doc-test-plan"]
+    license_text = test_plan.substitute(
+        "${.:/document-license-text:CC-BY-SA-4.0}")
+    assert "© 2026 Alice" in license_text
+    assert "© 2026 Bob" in license_text

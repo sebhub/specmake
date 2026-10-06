@@ -298,6 +298,7 @@ contained in the file
                         if condition["section"] == key
                     ]
                     for condition in matches:
+                        self.register_part(condition)
                         self.wrap(content, condition, condition["text"])
                     if not matches:
                         content.add(default)
@@ -335,6 +336,7 @@ contained in the file
         for procedure in sorted(procedures):
             with content.section(procedure["name"],
                                  label=spec_label(procedure)):
+                self.register_part(procedure)
                 self.wrap(content, procedure, procedure["text"])
         return content.join()
 
