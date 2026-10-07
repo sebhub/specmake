@@ -813,7 +813,34 @@ class DoxygenGroup(DoxygenContainer):
         data["identifier"] = self.name
         # The interface group type has no notes attribute.
         del data["notes"]
+        # A document reaches an interface through its placement, and the
+        # source places a group into no file.
+        if not any(link["role"] == "interface-placement"
+                   for link in data["links"]):
+            header = self._header_of_members()
+            if header is not None:
+                data["links"].insert(
+                    0, {
+                        "role": "interface-placement",
+                        "uid": header.uid_relative_to(self.uid)
+                    })
         return data
+
+    def _header_of_members(self) -> "DoxygenFile | None":
+        """
+        Is the first header with a group which is a member or holds a
+        member.
+        """
+        for member in self.members():
+            if member.is_header:
+                assert isinstance(member, DoxygenFile)
+                if member.group_ids:
+                    return member
+                continue
+            for file in member.files:
+                if file.is_header and file.group_ids:
+                    return file
+        return None
 
     def _review_gaps(self, data: dict) -> list[str]:
         gaps = super()._review_gaps(data)

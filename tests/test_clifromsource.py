@@ -268,7 +268,11 @@ def test_nested_group_gets_interface_ingroup_link(tmp_path):
     with open(spec_dir / "sub" / "sub" / "if" / "group.yml",
               encoding="utf-8") as src:
         sub_sub_group = yaml.safe_load(src)
+    # A group with a member in a header is placed into that header.
     assert sub_sub_group["links"] == [{
+        "role": "interface-placement",
+        "uid": "header-gadget"
+    }, {
         "role": "interface-ingroup",
         "uid": "../../if/group"
     }]
@@ -309,6 +313,12 @@ def test_generate_groups_reaches_files_via_member_ingroup_alone(tmp_path):
     ])
     assert (spec_dir / "if" / "header-widget.yml").is_file()
     assert (spec_dir / "if" / "widget-set-size.yml").is_file()
+    with open(spec_dir / "if" / "group.yml", encoding="utf-8") as src:
+        group = yaml.safe_load(src)
+    assert group["links"] == [{
+        "role": "interface-placement",
+        "uid": "header-widget"
+    }]
 
 
 def _valid_config() -> dict:
