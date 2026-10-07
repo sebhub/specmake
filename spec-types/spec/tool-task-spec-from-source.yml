@@ -18,6 +18,11 @@ spec-info:
         description: |
           It shall be the license and the copyrights of a generated item.
         spec-type: tool-task-spec-from-source-data
+      data-by-uid:
+        description: |
+          It shall map the UID of a generated item to the attributes which the
+          task sets in that item and in no other.
+        spec-type: tool-task-spec-from-source-data-by-uid
       default-group-name:
         description: |
           It shall be the name of the group which takes an item of no group.

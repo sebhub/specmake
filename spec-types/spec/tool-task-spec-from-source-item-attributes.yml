@@ -1,0 +1,24 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes: {}
+    description: |
+      This set of attributes overrides attributes of one generated item.
+    generic-attributes:
+      description: |
+        The key shall be the name of an attribute.  The value shall be the
+        value of the attribute.
+      key-spec-type: str
+      value-spec-type: any
+    mandatory-attributes: none
+spec-name: Tool Specification From Source Item Attributes
+spec-type: tool-task-spec-from-source-item-attributes
+type: spec

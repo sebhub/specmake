@@ -31,7 +31,7 @@ from pathlib import Path
 
 import yaml
 
-from specitems import CONFIG_FILE
+from specitems import CONFIG_FILE, load_data
 
 import pytest
 
@@ -1770,6 +1770,31 @@ def test_an_extra_link_which_reaches_an_item_is_not_reported(tmp_path, capsys):
         "names": ["widget_*"]
     }])
     assert "extra links which reached no item" not in output
+
+
+def _generate_widget_data_by_uid(tmp_path, capsys, data_by_uid) -> str:
+    config = _widget_extra_links_config(tmp_path, [])
+    config["data-by-uid"] = data_by_uid
+    _generate(tmp_path, config, _widget_api_xml_files())
+    return capsys.readouterr().out
+
+
+def test_data_by_uid_which_reaches_no_item_is_reported(tmp_path, capsys):
+    output = _generate_widget_data_by_uid(tmp_path, capsys,
+                                          {"/if/gone": {
+                                              "enabled-by": "FOO"
+                                          }})
+    assert "\ndata by UID which reached no item:\n  /if/gone" in output
+
+
+def test_data_by_uid_which_reaches_an_item_is_not_reported(tmp_path, capsys):
+    output = _generate_widget_data_by_uid(tmp_path, capsys,
+                                          {"/if/group": {
+                                              "enabled-by": "FOO"
+                                          }})
+    assert "data by UID which reached no item" not in output
+    assert load_data(str(tmp_path / "spec/if/group.yml"))["enabled-by"] == \
+        "FOO"
 
 
 def test_a_dry_run_reports_an_extra_link_which_reaches_no_item(

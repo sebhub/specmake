@@ -329,6 +329,20 @@ def _print_unapplied_extra_links(ctx: DoxygenContext, config: dict) -> None:
         print("\n".join(unapplied))
 
 
+def _print_unapplied_data_by_uid(ctx: DoxygenContext) -> None:
+    """
+    Report every entry of data-by-uid which reached no item.
+
+    An entry whose UID the run does not generate names an item which was
+    renamed or which left the source.  The attributes it states then
+    silently fall away from the specification.
+    """
+    unapplied = sorted(set(ctx.data_by_uid) - ctx.applied_data_by_uid)
+    if unapplied:
+        print("\ndata by UID which reached no item:")
+        print("\n".join(f"  {uid}" for uid in unapplied))
+
+
 def _reachable_headers(group: DoxygenGroup) -> list[DoxygenFile]:
     """
     Find every header file reachable from a group's members.
@@ -671,6 +685,7 @@ def _run(args) -> None:
             # thing the run reports rather than something buried above
             # the pruning summary.
             _print_unapplied_extra_links(ctx, config)
+            _print_unapplied_data_by_uid(ctx)
             _print_gaps(result.gaps)
 
 

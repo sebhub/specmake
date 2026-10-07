@@ -1,0 +1,25 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes: {}
+    description: |
+      This set of attributes maps the UID of a generated item to the attributes
+      which the source does not state, for example the enabled-by of a group.
+    generic-attributes:
+      description: |
+        The key shall be the UID of a generated item.  The value shall be the
+        attributes which override the attributes from the source.
+      key-spec-type: str
+      value-spec-type: tool-task-spec-from-source-item-attributes
+    mandatory-attributes: none
+spec-name: Tool Specification From Source Data by UID
+spec-type: tool-task-spec-from-source-data-by-uid
+type: spec

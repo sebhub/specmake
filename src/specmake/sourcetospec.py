@@ -225,7 +225,8 @@ class DoxygenItem:
         # license and the copyrights of that header.  The tooling knows
         # neither, so a task which states neither generates no item.
         for attribute in ("SPDX-License-Identifier", "copyrights"):
-            if attribute not in data:
+            if attribute not in data and attribute not in (
+                    self._data_by_uid_entry() or {}):
                 raise ConfigError(
                     f"the task states no {attribute} of a generated item: "
                     f"add it to the data of the task or of the group of "
@@ -290,6 +291,34 @@ class DoxygenItem:
             assert group_name is not None
             self.ctx.applied_extra_links.add((group_name, index))
 
+    def _add_data_by_uid(self, data: dict) -> None:
+        """
+        Set the attributes which the configuration states for the UID.
+
+        The source does not state every attribute of an item, for example
+        the enabled-by of a group, and the data of a group reaches every
+        member of it.  An entry reaches exactly the item of its UID and
+        overrides what the source gives.
+        """
+        attributes = self._data_by_uid_entry()
+        if attributes is not None:
+            data.update(attributes)
+            self.ctx.applied_data_by_uid.add(self.uid)
+
+    def _data_by_uid_entry(self) -> dict[str, Any] | None:
+        """
+        Is the entry of data-by-uid for the item, if there is one.
+
+        An item of no group has no UID, so it has no entry.
+        """
+        if not self.ctx.data_by_uid:
+            return None
+        try:
+            uid = self.uid
+        except ValueError:
+            return None
+        return self.ctx.data_by_uid.get(uid)
+
     def save(self, dry_run: bool = False) -> None:
         """
         Save the exported item.
@@ -300,6 +329,7 @@ class DoxygenItem:
         """
         data = self.export()
         self.add_extra_links(data)
+        self._add_data_by_uid(data)
         if dry_run:
             return
         path = self.ctx.spec_directory / f"{self.uid[1:]}.yml"
@@ -363,18 +393,27 @@ class DoxygenItem:
     @property
     def review_gaps(self) -> list[str]:
         """ List what a human still has to supply for this item. """
-        return self._review_gaps(self.export())
+        data = self.export()
+        self._add_data_by_uid(data)
+        return self._review_gaps(data)
+
+    def _effective_text(self, key: str) -> str | None:
+        """ Is the text of the key, from data-by-uid before the source. """
+        attributes = self._data_by_uid_entry() or {}
+        if key in attributes:
+            return _strip(attributes[key], None)
+        return self._get_optional_text(key)
 
     def _review_gaps(self, data: dict) -> list[str]:
         gaps = []
         # An item type without a brief attribute, for example an
         # unspecified header file, has no brief to complete by hand.
-        if "brief" in data and self._get_optional_text("brief") is None:
+        if "brief" in data and self._effective_text("brief") is None:
             # A brief which is empty next to a description says that
             # Doxygen took the whole comment block as the description.
             # The prose is in the item and only the split is missing, so
             # this is another gap than a declaration nobody documented.
-            if self._get_optional_text("description") is None:
+            if self._effective_text("description") is None:
                 gaps.append("placeholder brief")
             else:
                 gaps.append(EMPTY_BRIEF_GAP)
@@ -1162,6 +1201,7 @@ class DoxygenContext:
         self.spec_directory = Path(
             spec_directory if spec_directory is not None else "spec")
         self.data: dict = config.get("data") or {}
+        self.data_by_uid: dict[str, dict] = config.get("data-by-uid") or {}
         # A bare 'type-map:' attribute parses as null, not as an empty
         # dict. Treat it as absent, otherwise _map_types() raises an
         # AttributeError on every declaration it processes.
@@ -1189,6 +1229,7 @@ class DoxygenContext:
         # entry which reaches no item matches nothing the run
         # generated, so the run reports it.
         self.applied_extra_links: set[tuple[str, int]] = set()
+        self.applied_data_by_uid: set[str] = set()
 
     def doxygen_xml_to_spec(self, xml_files: list[str]) -> None:
         """ Convert Doxygen XML files to specification item data.  """

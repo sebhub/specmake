@@ -30,6 +30,7 @@ from xml.etree import ElementTree
 
 import pytest
 
+from specitems import load_data
 from specmake import DoxygenContext
 from specmake import sourcetospec
 from specmake.sourcetospec import _append_element_text, _Scope, DoxygenItem
@@ -1838,6 +1839,21 @@ def _new_item():
         }), "function", "m_0", "f")
 
 
+@pytest.mark.parametrize("data_by_uid", [{}, {"/if/other": {"brief": "B"}}])
+def test_an_item_of_no_group_has_review_gaps(data_by_uid):
+    item = _new_item()
+    item.ctx.data_by_uid = data_by_uid
+    assert item.review_gaps == ["placeholder brief"]
+
+
+def test_an_item_of_no_group_without_license_is_a_config_error():
+    item = _new_item()
+    item.ctx.data = {}
+    item.ctx.data_by_uid = {"/if/other": {"brief": "B"}}
+    with pytest.raises(sourcetospec.ConfigError):
+        item.export()
+
+
 def test_in_body_description_does_not_reach_the_documentation():
     # A comment inside a function body documents the implementation.  It
     # must not end up in the brief or the description, and it must not
@@ -2132,6 +2148,37 @@ def test_an_undocumented_header_file_needs_a_brief():
     assert _undocumented_header().review_gaps == ["placeholder brief"]
 
 
+def test_a_brief_by_uid_completes_an_undocumented_item():
+    header = _undocumented_header()
+    header.ctx.data_by_uid = {header.uid: {"brief": "A header."}}
+    assert header.review_gaps == []
+
+
+def test_a_description_by_uid_leaves_the_brief_empty():
+    header = _undocumented_header()
+    header.ctx.data_by_uid = {header.uid: {"description": "A header."}}
+    assert header.review_gaps == [sourcetospec.EMPTY_BRIEF_GAP]
+
+
+def test_the_license_may_come_from_the_data_by_uid(tmp_path):
+    ctx = DoxygenContext({
+        "data-by-uid": {
+            "/if/group": _LICENSE_DATA
+        },
+        "groups": {
+            "FooGroup": {
+                "uid": "/if/group"
+            }
+        },
+        "spec-directory": str(tmp_path)
+    })
+    ctx.doxygen_xml_to_spec(
+        [_get_path(path) for path in _EXTRA_LINKS_XML_FILES])
+    ctx.items_by_name["group"]["FooGroup"][0].save()
+    assert load_data(str(tmp_path / "if/group.yml"))["copyrights"] == \
+        _LICENSE_DATA["copyrights"]
+
+
 def test_an_unspecified_header_file_has_no_brief_to_complete():
     # The item type has no brief attribute, so there is nothing for a
     # human to write here.
@@ -2153,6 +2200,59 @@ def test_the_group_item_generation_can_be_suppressed(tmp_path):
     assert not _foo_group(tmp_path, **{
         "generate-group-item": False
     }).generate_item
+
+
+def test_the_data_by_uid_reaches_the_item_of_its_uid_alone(tmp_path):
+    ctx = DoxygenContext({
+        "data": _LICENSE_DATA,
+        "data-by-uid": {
+            "/if/group": {
+                "enabled-by": "FOO"
+            }
+        },
+        "groups": {
+            "FooGroup": {
+                "uid": "/if/group"
+            }
+        },
+        "spec-directory": str(tmp_path)
+    })
+    ctx.doxygen_xml_to_spec(
+        [_get_path(path) for path in _EXTRA_LINKS_XML_FILES])
+    group = ctx.items_by_name["group"]["FooGroup"][0]
+    member = ctx.items_by_name["function"]["gf_1"][0]
+    group.save()
+    member.save()
+    assert load_data(str(tmp_path / "if/group.yml"))["enabled-by"] == "FOO"
+    assert load_data(str(tmp_path /
+                         f"{member.uid[1:]}.yml"))["enabled-by"] is True
+    assert ctx.applied_data_by_uid == {"/if/group"}
+
+
+def test_a_group_without_text_has_the_gap(tmp_path):
+    group = _foo_group(tmp_path)
+    assert "missing text" in group.review_gaps
+
+
+def test_the_data_by_uid_supplies_the_text_of_a_group(tmp_path):
+    ctx = DoxygenContext({
+        "data": _LICENSE_DATA,
+        "data-by-uid": {
+            "/if/group": {
+                "text": "The API shall provide the foo interfaces."
+            }
+        },
+        "groups": {
+            "FooGroup": {
+                "uid": "/if/group"
+            }
+        },
+        "spec-directory": str(tmp_path)
+    })
+    ctx.doxygen_xml_to_spec(
+        [_get_path(path) for path in _EXTRA_LINKS_XML_FILES])
+    group = ctx.items_by_name["group"]["FooGroup"][0]
+    assert "missing text" not in group.review_gaps
 
 
 def _group_filter_context(tmp_path, group_rules, config_rules=None):
