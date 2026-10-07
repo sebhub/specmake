@@ -440,6 +440,9 @@ def _generate_groups(ctx: DoxygenContext,
         if group.name not in config["enabled-groups"]:
             continue
         print(group.doxygen_id)
+        # The group item places itself into a header, so every header
+        # reached by the group gets its group before the group item.
+        headers = _reachable_headers(group)
         if group.generate_item:
             with _generating(group):
                 group.save(dry_run=dry_run)
@@ -450,7 +453,7 @@ def _generate_groups(ctx: DoxygenContext,
                 _record_gaps(gaps, group)
                 registry.add(group)
         groups_processed += 1
-        for header in _reachable_headers(group):
+        for header in headers:
             items = header_items.get(header.doxygen_id)
             if items is None:
                 # Counted here rather than per owner, so a header shared

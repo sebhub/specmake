@@ -534,7 +534,10 @@ _FOO_GROUP_EXPECTED_RESULT = {
     "description": None,
     "enabled-by": True,
     "index-entries": [],
-    "links": [],
+    "links": [{
+        "role": "interface-placement",
+        "uid": "header"
+    }],
     "name": "Example Group",
     "type": "interface",
     "interface-type": "group",
@@ -1586,6 +1589,28 @@ def test_typedef_aliases_compound():
     assert typedefs["widget_size_t"][0].aliases_compound is False
     assert typedefs["widget_handle"][0].aliases_compound is False
     assert typedefs["tagged_enum"][0].aliases_compound is True
+
+
+def test_a_group_is_placed_into_no_header_without_a_group():
+    # widget.h has no @file @ingroup block, so the header of the member
+    # has no group and no UID before a run of the groups gives it one.
+    config = {
+        "data": _LICENSE_DATA,
+        "groups": {
+            "WidgetAPI": {
+                "uid": "/if/group"
+            }
+        },
+    }
+    ctx = DoxygenContext(config)
+    ctx.doxygen_xml_to_spec([
+        _get_path(
+            "source-to-spec/ingroup-only-member/xml/group__WidgetAPI.xml"),
+        _get_path("source-to-spec/ingroup-only-member/xml/widget_8h.xml"),
+    ])
+    group = ctx.items_by_kind["group"]["group__WidgetAPI"]
+    assert not any(link["role"] == "interface-placement"
+                   for link in group.export()["links"])
 
 
 def _get_path(path: str) -> str:
