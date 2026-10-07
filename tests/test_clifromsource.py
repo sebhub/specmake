@@ -288,6 +288,33 @@ def test_nested_group_gets_interface_ingroup_link(tmp_path):
     assert not (spec_dir / "if" / "header-gadget.yml").exists()
 
 
+def test_no_link_to_a_group_without_configuration(tmp_path):
+    spec_dir = tmp_path / "spec"
+    config = {
+        "data": {
+            "SPDX-License-Identifier": "CC-BY-SA-4.0 OR BSD-2-Clause",
+            "copyrights": ["Copyright (C) 2026 embedded brains GmbH & Co. KG"],
+        },
+        "groups": {
+            "ComponentAPISubGroup": {
+                "uid": "/sub/if/group"
+            },
+            "ComponentAPISubSubGroup": {
+                "uid": "/sub/sub/if/group"
+            },
+        },
+        "enabled-groups": ["ComponentAPISubGroup", "ComponentAPISubSubGroup"],
+        "spec-directory": str(spec_dir),
+    }
+    _generate(tmp_path, config, _nested_group_xml_files())
+
+    # The configuration names no ComponentAPIGroup, so no item stands for
+    # the parent of the sub group.
+    with open(spec_dir / "sub" / "if" / "group.yml", encoding="utf-8") as src:
+        sub_group = yaml.safe_load(src)
+    assert sub_group["links"] == []
+
+
 def test_generate_groups_reaches_files_via_member_ingroup_alone(tmp_path):
     # ingroup-only-member/widget.h has no @file @ingroup block at all: only
     # widget_set_size's own @ingroup associates it with WidgetAPI. Before
