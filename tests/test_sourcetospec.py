@@ -536,7 +536,6 @@ _FOO_GROUP_EXPECTED_RESULT = {
     "index-entries": [],
     "links": [],
     "name": "Example Group",
-    "notes": None,
     "type": "interface",
     "interface-type": "group",
     "identifier": "FooGroup",
@@ -2227,6 +2226,10 @@ def test_the_data_by_uid_reaches_the_item_of_its_uid_alone(tmp_path):
     assert load_data(str(tmp_path /
                          f"{member.uid[1:]}.yml"))["enabled-by"] is True
     assert ctx.applied_data_by_uid == {"/if/group"}
+
+
+def test_a_group_item_has_no_notes(tmp_path):
+    assert "notes" not in _foo_group(tmp_path).export()
 
 
 def test_a_group_without_text_has_the_gap(tmp_path):

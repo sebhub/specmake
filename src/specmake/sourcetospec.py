@@ -811,6 +811,8 @@ class DoxygenGroup(DoxygenContainer):
         data["name"] = self.data["title"]
         data["interface-type"] = "group"
         data["identifier"] = self.name
+        # The interface group type has no notes attribute.
+        del data["notes"]
         return data
 
     def _review_gaps(self, data: dict) -> list[str]:
