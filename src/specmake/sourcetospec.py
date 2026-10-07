@@ -205,6 +205,9 @@ class DoxygenItem:
                     "uid": file.uid_relative_to(self.uid)
                 })
         for group in self.groups:
+            # A group which the configuration does not name has no item.
+            if group.name not in self.ctx.groups:
+                continue
             links.append({
                 "role": "interface-ingroup",
                 "uid": group.uid_relative_to(self.uid)
