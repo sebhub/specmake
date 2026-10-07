@@ -104,14 +104,17 @@ class StandardTailoringProvider(DocumentBuilderValueProvider):
             mapper.add_get_value(f"{name}:/standard-tailoring",
                                  self._get_standard_tailoring)
         mapper.add_get_value("requirement/non-functional/ecss:/clause",
-                             self._get_ecss_clause)
+                             self._get_ecss_clause,
+                             reference=True)
         mapper.add_get_value("requirement/non-functional/ecss:/clause-long",
                              self._get_ecss_clause_long)
         mapper.add_get_value("requirement/non-functional/ecss:/clause-section",
-                             self._get_ecss_clause_section)
+                             self._get_ecss_clause_section,
+                             reference=True)
         mapper.add_get_value(
             "requirement/non-functional/ecss:/standard-and-clause",
-            self._get_ecss_standard_and_clause)
+            self._get_ecss_standard_and_clause,
+            reference=True)
         mapper.add_get_value(
             "requirement/non-functional/ecss:/standard-and-clause-long",
             self._get_ecss_standard_and_clause_long)

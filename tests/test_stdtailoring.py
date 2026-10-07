@@ -26,6 +26,10 @@
 
 from pathlib import Path
 
+import pytest
+
+from specitems import ContentContext
+
 from specmake import DocumentBuilder, ECSSClause
 
 from .util import create_package
@@ -71,6 +75,18 @@ def test_stdtailoring(caplog, tmpdir):
         assert builder_2.substitute(
             "${/standard/clause-0:/standard-and-clause}"
         ) == "`ABCD-X-ST-01Y Rev. 42 - 4.3.1.1x <../doc/path/to/ecss/tailoring-2#standardclause0>`__"
+
+    # A citation takes no content of the clause, a clause name does.  The
+    # document registers a mapped part once it has a content context.
+    assert isinstance(builder.content_context, ContentContext)
+    clause = director["/standard/clause-0"].item
+    clause["SPDX-License-Identifier"] = "LicenseRef-X"
+    for key in ("clause", "clause-section", "standard-and-clause"):
+        builder.substitute(f"${{/standard/clause-0:/{key}}}")
+    for key in ("clause-long", "standard-and-clause-long"):
+        with pytest.raises(ValueError, match="permits neither"):
+            builder.substitute(f"${{/standard/clause-0:/{key}}}")
+    clause["SPDX-License-Identifier"] = "CC-BY-SA-4.0"
 
     # Check standard tailoring
     assert builder.substitute(
