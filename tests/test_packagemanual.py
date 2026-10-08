@@ -1247,6 +1247,12 @@ git log -1
 git log -1
 ```
 """
+    package_summary.item["list-repositories"] = False
+    package_summary.run()
+    with open(package_summary.file, "r", encoding="utf-8") as src:
+        summary = src.read()
+    assert "Repositories" not in summary
+    assert summary.endswith("| tmfine01.exe | 1               |\n")
     pm2_build = Path(director["/pkg/build/doc-package-manual-2"].directory)
     pm2_index = pm2_build / "source" / "index.rst"
     with open(pm2_index, "r", encoding="utf-8") as src:

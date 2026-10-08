@@ -9,10 +9,6 @@ links:
   spec-key: directory-state-type
   spec-value: explicit
   uid: pkg-directory-state
-- role: spec-refinement
-  spec-key: directory-state-type
-  spec-value: package-summary
-  uid: pkg-directory-state
 spec-description: null
 spec-example: null
 spec-info:

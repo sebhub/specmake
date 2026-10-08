@@ -610,7 +610,9 @@ class PackageSummary(DirectoryState):
     functional requirement which is not validated fails the package.  A test
     program with failed attempts gives a warning.  The summary omits the
     sections of warnings, failures, requirements, gaps, stale gap items and
-    retried test programs without entries.
+    retried test programs without entries.  The summary lists the
+    repositories of the package, unless the list-repositories attribute is
+    false.
     """
 
     def run(self) -> None:
@@ -657,8 +659,9 @@ class PackageSummary(DirectoryState):
                 _add_gap_rows(rows, notes, scope, scope.stale, True)
             _add_gap_section(content, "Stale gap items", rows, notes)
             _add_retried_programs(content, retried)
-            with content.section("Repositories"):
-                self._add_repositories(content)
+            if self.item.get("list-repositories", True):
+                with content.section("Repositories"):
+                    self._add_repositories(content)
         content.write(summary_file)
         path = self.mapper.create_content().path(summary_file)
         self.description.add(f"""Produce the package summary file

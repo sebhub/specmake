@@ -1,0 +1,30 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+- role: spec-refinement
+  spec-key: directory-state-type
+  spec-value: package-summary
+  uid: pkg-directory-state
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      list-repositories:
+        description: |
+          It shall be true, to list the repositories of the package in the
+          summary, otherwise false.  If the attribute is absent, then the
+          summary lists the repositories.
+        spec-type: bool
+    description: |
+      This set of attributes specifies a package summary.  The summary is a
+      CommonMark file with the test results, the coverage and the coverage
+      gaps of the package.
+    mandatory-attributes: none
+spec-name: Package Summary Item Type
+spec-type: pkg-directory-package-summary
+type: spec
