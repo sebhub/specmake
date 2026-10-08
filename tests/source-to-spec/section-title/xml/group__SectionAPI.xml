@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.17.0" xml:lang="en-US">
+  <compounddef id="group__SectionAPI" kind="group">
+    <compoundname>SectionAPI</compoundname>
+    <title>Section API</title>
+    <briefdescription>
+<para>This is the Section API. </para>
+    </briefdescription>
+    <detaileddescription>
+<para>This paragraph opens the description.</para>
+<sect1 id="group__SectionAPI_1section_api_code">
+<title>Section of <computeroutput>CODE</computeroutput> and <ref refid="group__SectionAPI" kindref="compound">Section API</ref></title><para>This paragraph belongs to the section with inline markup.</para>
+</sect1>
+<sect1 id="group__SectionAPI_1section_api_last">
+<title>Last section</title><para>This paragraph belongs to the last section. </para>
+</sect1>
+    </detaileddescription>
+  </compounddef>
+</doxygen>

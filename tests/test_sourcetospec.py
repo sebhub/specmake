@@ -1456,6 +1456,32 @@ def test_inline_commands_do_not_truncate_text():
         assert word in brief, f"{word!r} missing from brief: {brief!r}"
 
 
+def test_a_section_title_is_a_paragraph_of_the_text():
+    config = {
+        "data": _LICENSE_DATA,
+        "groups": {
+            "SectionAPI": {
+                "uid": "/if/group"
+            }
+        },
+        "spec-directory": "spec",
+    }
+    ctx = DoxygenContext(config)
+    ctx.doxygen_xml_to_spec([
+        _get_path("source-to-spec/section-title/xml/group__SectionAPI.xml"),
+        _get_path("source-to-spec/section-title/xml/section_8h.xml"),
+    ])
+    data = ctx.items_by_kind["group"]["group__SectionAPI"].export()
+    assert data["name"] == "Section API"
+    paragraphs = [text.strip() for text in data["description"].split("\n\n")]
+    assert paragraphs == [
+        "This paragraph opens the description.",
+        "Section of CODE and Section API",
+        "This paragraph belongs to the section with inline markup.",
+        "Last section", "This paragraph belongs to the last section."
+    ]
+
+
 def test_parameternamelist_does_not_leak_into_parameter_description():
     # <parameternamelist> is an unhandled wrapper around <parametername>
     # that shares its scope with the sibling <parameterdescription>: it

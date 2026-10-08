@@ -1052,6 +1052,14 @@ def _tag_simplesect(elem: ElementTree.Element, scope: _Scope) -> _Scope:
 
 
 def _tag_title(elem: ElementTree.Element, scope: _Scope) -> _Scope:
+    if scope.key and isinstance(scope.data.get(scope.key), str):
+        # The title of a section in a text is a paragraph of that text.  The
+        # title holds the text of its inline elements, so they write into a
+        # scope which no item keeps.
+        title = " ".join("".join(elem.itertext()).split())
+        scope.data[scope.key] = (f"{scope.data[scope.key].rstrip()}\n\n"
+                                 f"{title}\n\n")
+        return _Scope(scope.item, {"title": ""}, "title")
     return _tag_attribute(elem, scope, "title")
 
 
