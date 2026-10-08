@@ -40,6 +40,7 @@ from .pkgitems import (BuildItemFactory, GenericPackageComponent, Redirection,
 from .packagechanges import PackageChanges
 from .packagemanual import PackageManualBuilder, PackageSummary
 from .perfimages import BuildPerformanceImages
+from .qualityscanner import QualityScanner
 from .repositoryfilter import export_no_data
 from .reposubset import RepositorySubset
 from .rtems import RTEMSItemCache, RTEMSPackageComponent
@@ -73,10 +74,14 @@ def create_build_item_factory() -> BuildItemFactory:
                       "pkg/template/inline-item", "pkg/template/redirect"):
         factory.add_export_data(type_name, export_template_data)
     factory.add_export_data("pkg/repository-filter", export_no_data)
+    for type_name in ("pkg/directory-state/explicit",
+                      "pkg/directory-state/patterns",
+                      "pkg/directory-state/test-coverage",
+                      "pkg/directory-state/unpacked-archive"):
+        factory.add_constructor(type_name, DirectoryState)
     factory.add_constructor("pkg/directory-state/archive", Archiver)
     factory.add_constructor("pkg/directory-state/ctrf", CTRFCollector)
     factory.add_constructor("pkg/directory-state/doxyfile", Doxyfile)
-    factory.add_constructor("pkg/directory-state/explicit", DirectoryState)
     factory.add_constructor("pkg/directory-state/gcda-producer", GCDAProducer)
     factory.add_constructor("pkg/directory-state/index", Indexer)
     factory.add_constructor("pkg/directory-state/not-run-coverage",
@@ -87,9 +92,10 @@ def create_build_item_factory() -> BuildItemFactory:
                             MembenchCollector)
     factory.add_constructor("pkg/directory-state/package-summary",
                             PackageSummary)
-    factory.add_constructor("pkg/directory-state/patterns", DirectoryState)
     factory.add_constructor("pkg/directory-state/performance-images",
                             BuildPerformanceImages)
+    factory.add_constructor("pkg/directory-state/quality-scanner",
+                            QualityScanner)
     factory.add_constructor("pkg/directory-state/repository", RepositoryState)
     factory.add_constructor("pkg/directory-state/repository-subset",
                             RepositorySubset)
@@ -113,11 +119,7 @@ def create_build_item_factory() -> BuildItemFactory:
                             TestReporter)
     factory.add_constructor("pkg/directory-state/sphinx/ts-icd", ICDBuilder)
     factory.add_constructor("pkg/directory-state/sphinx/ts-srs", SRSBuilder)
-    factory.add_constructor("pkg/directory-state/test-coverage",
-                            DirectoryState)
     factory.add_constructor("pkg/directory-state/test-log", TestLog)
-    factory.add_constructor("pkg/directory-state/unpacked-archive",
-                            DirectoryState)
     factory.add_constructor("pkg/index-group", IndexGroup)
     factory.add_constructor("pkg/link-hub", LinkHub)
     factory.add_constructor("pkg/package-changes", PackageChanges)

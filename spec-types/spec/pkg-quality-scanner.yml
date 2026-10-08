@@ -1,0 +1,44 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+- role: spec-refinement
+  spec-key: directory-state-type
+  spec-value: quality-scanner
+  uid: pkg-directory-state
+spec-description: |
+  The quality scanner scans the string values of the enabled items of the item
+  cache and the ``.rst`` and ``.md`` files of the documents for the open item
+  markers "to be defined" and "to be confirmed" in their three letter form.
+  The scanned items include the package items, since the documents substitute
+  their text.  The input links named ``document`` provide the documents.  The
+  scanner skips its own item, since its suppressions name the markers, and the
+  build descriptions of the build items.  No input tracks all scanned items, so
+  the scanner runs in each build.  The scanner writes each occurrence as a
+  result to the SARIF file of the directory state.  An item result names the
+  item attribute as a logical location.  A document result names the line and
+  column of the file.  Its region holds the marker, and its context region
+  holds the line.  The ``artifacts`` of the SARIF run list each scanned item
+  and document file.  The URI of an item artifact is relative to the base
+  ``SPEC``, the specification directory of the item file.  The URI of a
+  document artifact is relative to the directory of the document input, which
+  the UID of the input names as the base.  The build fails if a suppression
+  matches no occurrence or if two suppressions have the same key.
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      suppressions:
+        description: |
+          It shall be the list of suppressions for occurrences which are no
+          open item.
+        spec-type: pkg-quality-scanner-suppression-list
+    description: |
+      This set of attributes specifies a quality scanner.
+    mandatory-attributes: all
+spec-name: Quality Scanner Item Type
+spec-type: pkg-quality-scanner
+type: spec

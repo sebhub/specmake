@@ -1,0 +1,47 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      attribute:
+        description: |
+          If the value is present, then it shall be the path of the item
+          attribute which contains the occurrence, for example ``/text`` or
+          ``/references[0]/identifier``.
+        spec-type: optional-str
+      justification:
+        description: |
+          It shall state why the occurrence is no open item.
+        spec-type: str
+      line:
+        description: |
+          If the value is present, then it shall be the line number of the
+          occurrence in the document file.  The first line has the number one.
+        spec-type: optional-int
+      path:
+        description: |
+          If the value is present, then it shall be the path of the document
+          file relative to the directory of the document input.
+        spec-type: optional-str
+      uid:
+        description: |
+          It shall be the UID of the item or of the document input which
+          contains the occurrence.
+        spec-type: str
+    description: |
+      This set of attributes specifies the suppression of the open item
+      markers in one item attribute or in one line of a document file.  For
+      an item, ``attribute`` shall be present and ``path`` and ``line`` shall
+      be absent.  For a document file, ``path`` and ``line`` shall be present
+      and ``attribute`` shall be absent.
+    mandatory-attributes: all
+spec-name: Quality Scanner Suppression
+spec-type: pkg-quality-scanner-suppression
+type: spec

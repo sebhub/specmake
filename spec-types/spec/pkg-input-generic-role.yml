@@ -43,6 +43,10 @@ links:
   uid: pkg-input-role
 - role: spec-refinement
   spec-key: name
+  spec-value: document
+  uid: pkg-input-role
+- role: spec-refinement
+  spec-key: name
   spec-value: document-element
   uid: pkg-input-role
 - role: spec-refinement

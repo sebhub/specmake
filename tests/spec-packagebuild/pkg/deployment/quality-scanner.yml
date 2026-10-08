@@ -1,0 +1,41 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+directory: ${.:/component/build-directory}/quality-scanner
+directory-state-type: quality-scanner
+enabled-by: quality-scanner
+files:
+- file: tbd-tbc-in-documentation-sources.sarif
+  hash: null
+hash: null
+license-info: []
+links:
+- hash: null
+  name: component
+  role: input
+  uid: ../component
+- hash: null
+  name: spec
+  role: input
+  uid: ../steps/rtems-item-cache
+- hash: null
+  name: document
+  role: input
+  uid: ../source/quality-scanner-document
+- hash: null
+  name: document
+  role: input
+  uid: ../source/quality-scanner-disabled
+pkg-type: directory-state
+suppressions:
+- attribute: null
+  justification: The line explains the words.
+  line: 5
+  path: source/chapter.rst
+  uid: /pkg/source/quality-scanner-document
+- attribute: /term
+  justification: The glossary defines the term.
+  line: null
+  path: null
+  uid: /glossary/tbd
+type: pkg
