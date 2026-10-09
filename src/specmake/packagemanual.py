@@ -28,7 +28,7 @@
 import json
 import logging
 import os
-from typing import Iterator
+from typing import Iterator, NamedTuple
 
 from specitems import (CommonMarkContent, Copyrights, Item,
                        ItemGetValueContext, Link, ROW_SPAN, TextContent,
@@ -43,7 +43,6 @@ from .pkgitems import PackageBuildDirector
 from .packagechanges import PackageChanges
 from .testaggregator import (CoverageGap, CoverageScope, NotValidatedItem,
                              RetriedProgram, TestAggregator)
-from .testreporter import TestReporter
 from .testrunner import TestLog
 from .util import variant_order
 
@@ -436,7 +435,12 @@ _COUNT_HEADER = ("Passed", "Expected failures", "Unexpected failures",
 _COUNT_KEYS = ("passed", "expected-failures", "unexpected-failures",
                "unexpected-passes")
 
-_Reports = list[tuple[str, TestReporter]]
+
+class _Verdicts(NamedTuple):
+    component: str
+    failures: dict[str, list[str]]
+    reasons: dict[str, dict[str, list[str]]]
+    counts: dict[str, dict[str, int]]
 
 
 def _add_gap_rows(rows: list[list[str]], notes: list[str],
@@ -472,7 +476,7 @@ def _count(count: int, singular: str, plural: str) -> str:
     return f"{count} {singular if count == 1 else plural}"
 
 
-def _add_status(content: TextContent, reports: _Reports,
+def _add_status(content: TextContent, verdicts: list[_Verdicts],
                 scopes: list[CoverageScope],
                 not_validated: list[NotValidatedItem],
                 root_inspected: bool) -> None:
@@ -480,8 +484,8 @@ def _add_status(content: TextContent, reports: _Reports,
     # the target.
     items = 0
     targets = 0
-    for _, report in reports:
-        for target, uids in report["unexpected-test-failures"].items():
+    for verdicts_2 in verdicts:
+        for target, uids in verdicts_2.failures.items():
             items += sum(1 for uid in uids if uid != target)
             targets += int(target in uids)
     nok = sum(1 for scope in scopes if scope.error)
@@ -526,13 +530,13 @@ def _add_warnings(content: TextContent, retried: list[RetriedProgram]) -> None:
             ])
 
 
-def _add_test_overview(content: TextContent, reports: _Reports) -> None:
+def _add_test_overview(content: TextContent,
+                       verdicts: list[_Verdicts]) -> None:
     with content.section("Test overview"):
         rows = [["Component", "Target", *_COUNT_HEADER]]
-        for ident, report in reports:
-            for target, counts in report.get("test-program-counts",
-                                             {}).items():
-                rows.append([ident, target] +
+        for verdicts_2 in verdicts:
+            for target, counts in verdicts_2.counts.items():
+                rows.append([verdicts_2.component, target] +
                             [str(counts[key]) for key in _COUNT_KEYS])
         if len(rows) == 1:
             content.add("There are no test program results.")
@@ -545,13 +549,14 @@ def _sentence(text: str) -> str:
     return text if text.endswith(".") else f"{text}."
 
 
-def _add_unexpected_failures(content: TextContent, reports: _Reports) -> None:
+def _add_unexpected_failures(content: TextContent,
+                             verdicts: list[_Verdicts]) -> None:
     rows = [["Component", "Target", "Item", "Reason"]]
-    for ident, report in reports:
-        reasons = report.get("unexpected-test-failure-reasons", {})
-        for target, uids in report["unexpected-test-failures"].items():
+    for verdicts_2 in verdicts:
+        reasons = verdicts_2.reasons
+        for target, uids in verdicts_2.failures.items():
             rows.extend([
-                ident, target, uid, " ".join(
+                verdicts_2.component, target, uid, " ".join(
                     _sentence(reason)
                     for reason in reasons.get(target, {}).get(uid, []))
             ] for uid in uids)
@@ -603,57 +608,66 @@ def _add_coverage(content: TextContent, scopes: list[CoverageScope]) -> None:
         content.add_simple_table(rows)
 
 
+class _Aggregations(NamedTuple):
+    verdicts: list[_Verdicts]
+    scopes: list[CoverageScope]
+    not_validated: list[NotValidatedItem]
+    retried: list[RetriedProgram]
+
+
 def _gather_aggregations(
-    test_aggregators: list[TestAggregator]
-) -> tuple[list[CoverageScope], list[NotValidatedItem], list[RetriedProgram]]:
+        test_aggregators: list[TestAggregator]) -> _Aggregations:
     # Each component validates the specification in its own item view, so
     # query each test aggregator in the scope of its component.
+    verdicts: list[_Verdicts] = []
     scopes: list[CoverageScope] = []
     not_validated: set[NotValidatedItem] = set()
     retried: list[RetriedProgram] = []
     for test_aggregator in test_aggregators:
         with test_aggregator.component.scope():
+            analysis = test_aggregator.get_analysis()
+            verdicts.append(
+                _Verdicts(test_aggregator.substitute("${.:/component/ident}"),
+                          analysis.get_unexpected_failures(),
+                          analysis.get_unexpected_failure_reasons(),
+                          analysis.program_counts))
             scopes.extend(test_aggregator.get_coverage_scopes())
             not_validated.update(test_aggregator.get_not_validated_items())
             retried.extend(test_aggregator.get_retried_programs())
-    return scopes, sorted(not_validated), retried
+    return _Aggregations(verdicts, scopes, sorted(not_validated), retried)
 
 
 class PackageSummary(DirectoryState):
     """
     Builds a package summary in CommonMark.
 
-    The summary states the overall status at its beginning.  A specification
-    root which is not validated fails the package.  The summary then lists
-    every related item which is not validated.  Only a test aggregation
-    inspects the specification root.  A test program with failed attempts
-    gives a warning.  The summary omits the sections of warnings, failures,
-    not validated items, gaps, stale gap items and retried test programs
-    without entries.  The summary lists the repositories of the package,
-    unless the list-repositories attribute is false.
+    The summary states the overall status at its beginning.  It takes the
+    verdicts from the analysis of each test aggregation and needs no test
+    report.  A specification root which is not validated fails the package.
+    The summary then lists every related item which is not validated.  Only a
+    test aggregation inspects the specification root.  A test program with
+    failed attempts gives a warning.  The summary omits the sections of
+    warnings, failures, not validated items, gaps, stale gap items and retried
+    test programs without entries.  The summary lists the repositories of the
+    package, unless the list-repositories attribute is false.
     """
 
     def run(self) -> None:
         summary_file = self.file
         self.mapper.set_format(summary_file)
-        reports: _Reports = []
-        for report in self.inputs("test-report"):
-            assert isinstance(report, TestReporter)
-            with report.component.scope():
-                reports.append(
-                    (report.substitute("${.:/component/ident}"), report))
         test_aggregators: list[TestAggregator] = []
         for test_aggregator in self.inputs("test-aggregation"):
             assert isinstance(test_aggregator, TestAggregator)
             test_aggregators.append(test_aggregator)
-        scopes, items, retried = _gather_aggregations(test_aggregators)
+        verdicts, scopes, items, retried = _gather_aggregations(
+            test_aggregators)
         root_inspected = bool(test_aggregators)
         content = CommonMarkContent(0, context=self.mapper.context)
         with content.section(f"Package summary - {self.component['ident']}"):
-            _add_status(content, reports, scopes, items, root_inspected)
+            _add_status(content, verdicts, scopes, items, root_inspected)
             _add_warnings(content, retried)
-            _add_test_overview(content, reports)
-            _add_unexpected_failures(content, reports)
+            _add_test_overview(content, verdicts)
+            _add_unexpected_failures(content, verdicts)
             _add_not_validated(content, items)
             _add_coverage(content, scopes)
             rows = [[

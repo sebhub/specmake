@@ -35,19 +35,15 @@ import specitems
 from specitems import CommonMarkContent, ItemGetValueContext
 
 import specmake
-from specmake import PackageComponent, TestReporter
+from specmake import PackageComponent
+from specmake.packagemanual import _Verdicts
 from specmake.testaggregator import (CoverageGap, CoverageScope,
                                      NotValidatedItem)
+from specmake.testanalysis import TestAnalysis
 
 from .util import create_package
 
-TestReporter.__test__ = False
-
-
-class _DummyTestReporter(TestReporter):
-
-    def run(self) -> None:
-        pass
+TestAnalysis.__test__ = False
 
 
 def _set_enabled_set(component: PackageComponent,
@@ -157,8 +153,6 @@ def test_packagemanual(caplog, tmpdir, monkeypatch):
     package = create_package(caplog, tmp_dir, Path("spec-packagebuild"),
                              ["aggregate-test-results", "archive"])
     director = package.director
-    director.factory.add_constructor("pkg/directory-state/sphinx/test-report",
-                                     _DummyTestReporter)
     director.build_package()
 
     _set_enabled_set(package,
@@ -1128,33 +1122,33 @@ The table counts the test programs.
 
  | Component           | Target          | Passed | Expected failures | Unexpected failures | Unexpected passes |
  | ------------------- | --------------- | ------ | ----------------- | ------------------- | ----------------- |
- | sparc/gr712rc/smp/4 | /rtems/target-a | 3      | 2                 | 7                   | 1                 |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | 4      | 0                 | 11                  | 0                 |
 
 <a id="PackageSummarySparcGr712rcSmp4UnexpectedFailures"></a>
 
 ## Unexpected failures
 
- | Component           | Target          | Item                                      | Reason                                                                           |
- | ------------------- | --------------- | ----------------------------------------- | -------------------------------------------------------------------------------- |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/test-program                       |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smplock01      |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smpopenmp01    |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/sptests/sptimecounter02 |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmcontext01     |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmfine01        |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmtimer01       |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action                         | There are no test results available for this target.                             |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action-2                       |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/perf-no-results                |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/target-a                           | Insufficient overall line coverage. Unused code coverage justifications.         |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-fail                 |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-run                  |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-unit                 |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-xfail                |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/performance-no-clock-0        |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-fail               |                                                                                  |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-pass               | The BSP has not the expected name. The tools version has not the expected value. |
- | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-xfail              |                                                                                  |
+ | Component           | Target          | Item                                      | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+ | ------------------- | --------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/test-program                       | At least one build configuration option has not the expected value or the build configuration information is not present. The RTEMS Git commit has not the expected value. The test output contains no begin of test message. The test output contains no end of test message. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smplock01      | At least one build configuration option has not the expected value or the build configuration information is not present. The RTEMS Git commit has not the expected value. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/smptests/smpopenmp01    | At least one build configuration option has not the expected value or the build configuration information is not present. The RTEMS Git commit has not the expected value. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/sptests/sptimecounter02 | At least one build configuration option has not the expected value or the build configuration information is not present. The RTEMS Git commit has not the expected value. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmcontext01     | At least one build configuration option has not the expected value or the build configuration information is not present. The RTEMS Git commit has not the expected value. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmfine01        | At least one build configuration option has not the expected value or the build configuration information is not present. The RTEMS Git commit has not the expected value. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /build/testsuites/tmtests/tmtimer01       | At least one build configuration option has not the expected value or the build configuration information is not present. The RTEMS Git commit has not the expected value. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action                         | There are no test results available for this target.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/action-2                       | There are no test results available for this target.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/req/perf-no-results                | There are no test results available for this target.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/target-a                           | Coverage limits met only with an excluded test, and no target gives complete evidence. Excluded tests which no other target ran. Excluded tests without a reason. Insufficient file-specific branch coverage. Insufficient file-specific function coverage. Insufficient file-specific line coverage. Insufficient overall branch coverage. Insufficient overall function coverage. Insufficient overall line coverage. No branch information in coverage data. No function information in coverage data. No general function information in coverage data. No line information in coverage data. Out of date branch coverage gap justifications. Out of date line coverage gap justifications. Unrelated code coverage justifications. Unused code coverage justifications. |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-fail                 | The failed test steps count value is not zero. The test duration has not the expected value. The test step count value is not positive.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-run                  | There are no test results available for this target.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-unit                 | There are no test results available for this target.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /rtems/val/test-case-xfail                | The test duration has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/performance-no-clock-0        | A maximum runtime value is greater than expected. A median runtime value is not in the expected interval. A minimum runtime value is less than expected. The RTEMS Git commit has not the expected value. The build label has not the expected value. The compiler version has not the expected value. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-fail               | At least one build configuration option has not the expected value or the build configuration information is not present. The BSP has not the expected name. The RTEMS Git commit has not the expected value. The RTEMS_SMP build configuration option has not the expected value. The build label has not the expected value. The compiler version has not the expected value. The failed test steps count value is not zero. The test output contains no end of test message. The test step count value is not positive. The tools version has not the expected value.                                                                                                                                                                                                     |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-pass               | The BSP has not the expected name. The RTEMS Git commit has not the expected value. The build label has not the expected value. The compiler version has not the expected value. The target hash has not the expected value. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+ | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-xfail              | The BSP has not the expected name. The RTEMS Git commit has not the expected value. The build label has not the expected value. The compiler version has not the expected value. The failed test steps count value is not zero. The test output contains no end of test message. The tools version has not the expected value.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 <a id="PackageSummarySparcGr712rcSmp4NotValidatedItems"></a>
 
@@ -1391,6 +1385,17 @@ class _Aggregator:
         self._check_scope()
         return []
 
+    def get_analysis(self):
+        self._check_scope()
+        analysis = TestAnalysis()
+        analysis.program_counts = {"/t": {"passed": 1}}
+        return analysis
+
+    def substitute(self, text):
+        self._check_scope()
+        assert text == "${.:/component/ident}"
+        return self.component.ident
+
 
 def test_packagesummary_gather_aggregations():
     active: list[str] = []
@@ -1400,9 +1405,18 @@ def test_packagesummary_gather_aggregations():
         NotValidatedItem("uni", (1, 0), "/a", "interface/define"),
         NotValidatedItem("uni", (0, ), "/req/root", root)
     ]
-    scopes, items, retried = specmake.packagemanual._gather_aggregations(
-        [_Aggregator("uni", active, uni),
-         _Aggregator("smp", active, [smp])])
+    verdicts, scopes, items, retried = \
+        specmake.packagemanual._gather_aggregations(
+            [_Aggregator("uni", active, uni),
+             _Aggregator("smp", active, [smp])])
+    assert verdicts == [
+        _Verdicts("uni", {}, {}, {"/t": {
+            "passed": 1
+        }}),
+        _Verdicts("smp", {}, {}, {"/t": {
+            "passed": 1
+        }})
+    ]
     assert scopes == []
     assert items == [smp, uni[1], uni[0]]
     assert retried == []
@@ -1411,7 +1425,7 @@ def test_packagesummary_gather_aggregations():
 
 def test_packagesummary_status_without_aggregation():
     content = CommonMarkContent(0, context="BSD-2-Clause")
-    reports = [("c", {"unexpected-test-failures": {}})]
+    reports = [_Verdicts("c", {}, {}, {})]
     specmake.packagemanual._add_status(content, reports, [], [], False)
     assert str(content) == """<a id="Passed"></a>
 
@@ -1424,7 +1438,7 @@ There are no unexpected test failures.  All coverage scopes meet their limits.  
 def test_packagesummary_sections(monkeypatch):
     monkeypatch.setattr(specmake.packagemanual, "_MAX_GAP_ROWS", 1)
     content = CommonMarkContent(0, context="BSD-2-Clause")
-    reports = [("c", {"unexpected-test-failures": {}})]
+    reports = [_Verdicts("c", {}, {}, {})]
     scope = CoverageScope("c", "t", "k", "s", [], False, [
         CoverageGap("f", "line 1"),
         CoverageGap("f", "line 2"),
