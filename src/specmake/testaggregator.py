@@ -122,6 +122,18 @@ def _update_measurement_status(measurement_data: _Data, env_data: _Data,
         measurement_data["status"] = status
 
 
+def get_test_error_verifications(target: Item) -> dict[str, str]:
+    """
+    Get the test error verifications of the target.
+
+    The map associates the UID of a verified item with the UID of its
+    verification.
+    """
+    verifications: dict[str, str] = {}
+    _gather_test_error_verifications(target, verifications)
+    return verifications
+
+
 def _gather_test_error_verifications(item: Item,
                                      verifications: dict[str, str]) -> None:
     for item_2 in itertools.chain(item.children("verification-member"),
@@ -674,9 +686,8 @@ class TestAggregator(BuildItem):
         for target, configs in sorted(self._gather_results().items()):
             target_key = target["key"]
             label = self._make_label({}, target_key)
-            test_error_verifications: dict[str, str] = {}
-            _gather_test_error_verifications(target.item,
-                                             test_error_verifications)
+            test_error_verifications = get_test_error_verifications(
+                target.item)
             coverage_gap_verifications: dict[str,
                                              _FileToSpotJustification] = {}
             _gather_coverage_gap_verifications(self.uid, target.item,
