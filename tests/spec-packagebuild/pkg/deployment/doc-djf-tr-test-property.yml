@@ -1,0 +1,88 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+directory: ${.:/component/deployment-directory}/doc-djf-tr-test-property
+directory-state-type: sphinx
+document-base-path: /
+document-components: []
+document-contributors: []
+document-copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+document-html-footer: footer
+document-html-help-base-name: TR
+document-key: blub
+document-latex-footer-right: footer right
+document-latex-geometry: geometry
+document-latex-header-left: header left
+document-latex-sphinxsetup: sphinxsetup
+document-latex-theme: manual
+document-accepted-licenses: []
+document-license: CC-BY-SA-4.0
+document-releases: []
+document-title: TR
+document-toctree-maxdepth: 4
+document-type: test-report
+enabled-by: test-report-test-property
+files: []
+hash: null
+license-info:
+- copyrights:
+  - Copyright (C) 2026 embedded brains GmbH & Co. KG
+  expressions:
+  - BSD-2-Clause
+  license: BSD-2-Clause
+  provenance: []
+links:
+- hash: null
+  name: component
+  role: input
+  uid: ../component
+- hash: null
+  key: rtems-commit
+  name: test-property
+  property-name: RTEMS Git Commit
+  role: input
+  type: rtems-version
+  expected: 58bff622d610865c76da045e8cc67aa56c32b7c8
+  uid: ../component
+output-html: null
+output-pdf: null
+pkg-type: directory-state
+test-program-counts:
+  /rtems/target-a:
+    expected-failures: 2
+    passed: 3
+    unexpected-failures: 7
+    unexpected-passes: 1
+type: pkg
+unexpected-test-failure-reasons:
+  /rtems/target-a:
+    /rtems/req/action:
+    - There are no test results available for this target.
+    /rtems/target-a:
+    - Insufficient overall line coverage
+    - Unused code coverage justifications
+    /testsuites/test-suite-pass:
+    - The BSP has not the expected name.
+    - The tools version has not the expected value.
+unexpected-test-failures:
+  /rtems/target-a:
+  - /build/test-program
+  - /build/testsuites/smptests/smplock01
+  - /build/testsuites/smptests/smpopenmp01
+  - /build/testsuites/sptests/sptimecounter02
+  - /build/testsuites/tmtests/tmcontext01
+  - /build/testsuites/tmtests/tmfine01
+  - /build/testsuites/tmtests/tmtimer01
+  - /rtems/req/action
+  - /rtems/req/action-2
+  - /rtems/req/perf-no-results
+  - /rtems/target-a
+  - /rtems/val/test-case-fail
+  - /rtems/val/test-case-run
+  - /rtems/val/test-case-unit
+  - /rtems/val/test-case-xfail
+  - /testsuites/performance-no-clock-0
+  - /testsuites/test-suite-fail
+  - /testsuites/test-suite-pass
+  - /testsuites/test-suite-xfail

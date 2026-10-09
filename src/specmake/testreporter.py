@@ -25,26 +25,20 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from contextlib import contextmanager
-import functools
-import itertools
 import os
 import re
-from typing import Any, Callable, Iterable, Iterator, NamedTuple
+from typing import Iterator
 
-from specitems import (EmptyItem, Item, ItemGetValueContext, SphinxContent,
+from specitems import (Item, ItemGetValueContext, SphinxContent,
                        base64_to_hex_text)
 
-from .directorystate import DirectoryState
 from .docbuilder import DocumentBuilder
-from .pkgitems import PackageBuildDirector
+from .pkgitems import BuildItemMapper, PackageBuildDirector
 from .perfimages import environment_order
 from .testaggregator import TestAggregator
+from .testanalysis import (ERRORS, ConfigRef, Failures, InfoChecks,
+                           IssueSubject, LimitCheck, TestAnalysis, TestCheck)
 from .util import duration
-
-_Failures = dict[str, dict[tuple[Item, str], dict[str, set[str]]]]
-
-_VERDICTS = ("passed", "expected-failures", "unexpected-failures",
-             "unexpected-passes")
 
 _NON_ORDINARY = re.compile(r"[^\x20-\x7e]")
 
@@ -57,169 +51,100 @@ def _invisible_spaces(text: str) -> str:
     return "\u200b".join(iter(_NON_ORDINARY.sub(_escape_char, text)))
 
 
-def _ok(good: bool) -> str:
-    if good:
-        return "OK"
-    return "NOK"
-
-
-def _check(expected: str, reported: str) -> str:
-    if reported == "?":
-        return "NOK"
-    return _ok(expected == reported)
-
-
-def _check_gt_zero(_expected: str, reported: str) -> str:
-    try:
-        if float(reported) > 0.0:
-            return "OK"
-    except ValueError:
-        pass
-    return "NOK"
-
-
-def _check_eq_zero(_expected: str, reported: str) -> str:
-    try:
-        if int(reported) == 0:
-            return "OK"
-    except ValueError:
-        pass
-    return "NOK"
-
-
-def _check_duration(_expected: str, reported: str) -> str:
-    if reported == "?":
-        return "NOK"
-    return "OK"
-
-
-def _listed(listed: bool) -> str:
-    if listed:
-        return "listed"
-    return "not listed"
-
-
-def _zero_one(value: bool) -> str:
-    if value:
-        return "1"
-    return "0"
-
-
-def _rtems_version_to_commit(version: str) -> str:
-    return _invisible_spaces(version.split(".")[-1])
-
-
-_RSB_COMMIT = re.compile(r"RSB ([^,]+),")
-
-
-def _rsb_version_to_commit(version: str) -> str:
-    match = _RSB_COMMIT.search(version)
-    if match is None:
-        return "?"
-    return _invisible_spaces(match.group(1))
-
-
-def _option(option: str, options: list[str]) -> str:
-    return _listed(option in options)
-
-
 def _target_hash(target_hash: str) -> str:
     if not target_hash:
         return "\u200b"
     return _invisible_spaces(target_hash)
 
 
-_PROPERTY_TRANSFORM = {
-    "rtems-source-builder-version": _rsb_version_to_commit,
-    "rtems-version": _rtems_version_to_commit
-}
+_INVISIBLE_KEYS = frozenset(
+    ("bsp", "build-label", "compiler", "report-hash", "tools", "version"))
 
 _HEADER = ["Property", "Line", "Reported", "Expected", "Status"]
 
 _WIDTHS = [42, 8, 20, 20, 10]
 
-_ERRORS = {
-    "no-begin-of-test-message":
-    "The test output contains no begin of test message.",
-    "no-end-of-test-message":
-    "The test output contains no end of test message.",
-    "unexpected-bsp":
-    "The BSP has not the expected name.",
-    "unexpected-build":
-    "At least one build configuration option has not the expected value "
-    "or the build configuration information is not present.",
-    "unexpected-build-label":
-    "The build label has not the expected value.",
-    "unexpected-compiler":
-    "The compiler version has not the expected value.",
-    "unexpected-duration":
-    "The test duration has not the expected value.",
-    "unexpected-failed-steps-count":
-    "The failed test steps count value is not zero.",
-    "unexpected-report-hash":
-    "The report hash has not the expected value.",
-    "unexpected-rtems-debug":
-    "The RTEMS_DEBUG build configuration option has not the expected value.",
-    "unexpected-rtems-multiprocessing":
-    "The RTEMS_MULTIPROCESSING build configuration option "
-    "has not the expected value.",
-    "unexpected-rtems-posix-api":
-    "The RTEMS_POSIX_API build configuration option "
-    "has not the expected value.",
-    "unexpected-rtems-profiling":
-    "The RTEMS_PROFILING build configuration option "
-    "has not the expected value.",
-    "unexpected-rtems-smp":
-    "The RTEMS_SMP build configuration option has not the expected value.",
-    "unexpected-runtime-maximum":
-    "A maximum runtime value is greater than expected.",
-    "unexpected-runtime-median":
-    "A median runtime value is not in the expected interval.",
-    "unexpected-runtime-minimum":
-    "A minimum runtime value is less than expected.",
-    "unexpected-step-count":
-    "The test step count value is not positive.",
-    "unexpected-target-hash":
-    "The target hash has not the expected value.",
-    "unexpected-tools":
-    "The tools version has not the expected value.",
-    "unexpected-version":
-    "The RTEMS Git commit has not the expected value.",
-}
+
+def _ok(good: bool) -> str:
+    if good:
+        return "OK"
+    return "NOK"
 
 
-class _TestProperty(NamedTuple):
-    name: str
-    type: str
-    expected: str
+def _reported(check: TestCheck) -> str:
+    if check.line is None:
+        return "?"
+    if check.key == "duration":
+        return duration(check.reported)
+    if check.key == "target-hash":
+        return _target_hash(check.reported)
+    if check.reported is None:
+        return "?"
+    if check.key in _INVISIBLE_KEYS:
+        return _invisible_spaces(check.reported)
+    return str(check.reported)
+
+
+def _expected(check: TestCheck) -> str:
+    if check.key == "duration":
+        return ":math:`\\geq` 0"
+    if check.key == "target-hash":
+        return ", ".join(
+            _invisible_spaces(target_hash)
+            for target_hash in check.expected.split(", "))
+    if check.key in _INVISIBLE_KEYS:
+        return _invisible_spaces(check.expected)
+    return check.expected
+
+
+def _limit_row(check: LimitCheck) -> list[str]:
+    if check.kind == "minimum":
+        assert check.lower_bound is not None
+        return [
+            "Minimum", f"{duration(check.lower_bound)} :math:`\\leq` Minimum",
+            duration(check.value),
+            _ok(check.ok)
+        ]
+    if check.kind == "median":
+        assert check.lower_bound is not None
+        assert check.upper_bound is not None
+        return [
+            "Median", f"{duration(check.lower_bound)} :math:`\\leq` Median "
+            f":math:`\\leq` {duration(check.upper_bound)}",
+            duration(check.value),
+            _ok(check.ok)
+        ]
+    assert check.upper_bound is not None
+    return [
+        "Maximum", f"Maximum :math:`\\leq` {duration(check.upper_bound)}",
+        duration(check.value),
+        _ok(check.ok)
+    ]
+
+
+def _format_group(group: ConfigRef | str) -> str:
+    if isinstance(group, ConfigRef):
+        return f":ref:`Configuration - {group.key} <{group.anchor}>`"
+    return group
+
+
+def _format_subject(mapper: BuildItemMapper,
+                    subject: str | IssueSubject) -> str:
+    if isinstance(subject, IssueSubject):
+        if subject.link:
+            return mapper.format_link(subject.text, subject.link)
+        return subject.text
+    return subject
 
 
 class _TestContext:
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self, reporter: "TestReporter"):
-        self.context = reporter.mapper.context
-        self.content = SphinxContent(context=self.context)
-        self.enabled_set = reporter.enabled_set
-        self.expected_failures: _Failures = {}
-        self.unexpected_failures: _Failures = {}
-        self.program_counts: dict[str, dict[str, int]] = {}
-        self.limits_uid = ""
-        self.limits_by_req: dict[str, dict] = {}
-        self.target_hashes: tuple[str, ...] = tuple()
-        self.target_hashes_display = ""
-        self.target_uid = ""
-        self.build_label = ""
-        self.bsp: str = reporter.component["bsp"]
-        self.properties: dict[str, _TestProperty] = {}
-        for link, _ in reporter.input_links("test-property"):
-            data = reporter.substitute(link.data)
-            self.properties[data["key"]] = _TestProperty(
-                data["property-name"], data["type"],
-                _invisible_spaces(data["expected"]))
-        self.item = EmptyItem()
-        self.verifications: dict[str, str] = {}
+
+    def __init__(self, reporter: "TestReporter", analysis: TestAnalysis):
+        self.content = SphinxContent(context=reporter.mapper.context)
+        self.mapper = reporter.mapper
+        self.cache = reporter.item.cache
+        self.analysis = analysis
         self.output_label = ""
-        self.config_data: dict[str, Any] = {}
 
     def begin_report(self, report: dict) -> None:
         """ Begins the report. """
@@ -243,30 +168,7 @@ executable.  The executable file had an SHA512 digest of
         return (f":ref:`{line + 1} <"
                 f"{self.output_label}{line - line % 100}>`")
 
-    def add_error(self, error: str, add_to_content: bool = False) -> None:
-        """
-        Add the error with the reason.
-
-        Optionally, add the reason to the content.
-        """
-        text = _ERRORS[error]
-        if add_to_content:
-            self.content.wrap(text)
-        key = self.config_data["config-key"]
-        config = f":ref:`Configuration - {key} <{self.content.get_label()}>`"
-        uid = self.verifications.get(self.item.uid, None)
-        failures = self.unexpected_failures
-        verification_text = ""
-        if uid is not None:
-            verification = self.item.cache[uid]
-            if error in verification["acceptable-test-errors"]:
-                failures = self.expected_failures
-                verification_text = verification["text"]
-        failures.setdefault(self.target_uid, {}).setdefault(
-            (self.item, verification_text), {}).setdefault(config,
-                                                           set()).add(text)
-
-    def add_failures(self, which: str, failures: _Failures,
+    def add_failures(self, which: str, failures: Failures,
                      test_aggregator: TestAggregator) -> None:
         """ Add the test failures to the content. """
         with self.content.section(f"List of {which} test failures"):
@@ -274,190 +176,70 @@ executable.  The executable file had an SHA512 digest of
                 self.content.add(f"There were no {which} test errors "
                                  "found in the test outputs.")
                 return
-            for target_uid, by_test in failures.items():
+            for target_uid, by_item in failures.items():
                 target_data = test_aggregator.targets[target_uid]
                 target_section = f"Target - {target_data['name']}"
                 with self.content.section(target_section):
-                    for item_text, by_config in sorted(by_test.items()):
-                        with self.content.section(item_text[0].spec_2):
-                            self.content.add(item_text[1])
-                            for config, errors in sorted(by_config.items()):
-                                self.content.add_list_item(f"{config}:")
+                    for uid_text, groups in sorted(by_item.items()):
+                        item = self.cache[uid_text[0]]
+                        with self.content.section(item.spec_2):
+                            self.content.add(uid_text[1])
+                            for group, subjects in sorted(
+                                (_format_group(group), subjects)
+                                    for group, subjects in groups.items()):
+                                self.content.add_list_item(f"{group}:")
                                 self.content.add_blank_line()
                                 with self.content.indent("  "):
-                                    self.content.add_list(sorted(errors))
-
-    # pylint: disable=too-many-arguments
-    # pylint: disable=too-many-positional-arguments
-    def check(self,
-              rows: list[list[str]],
-              info: dict,
-              name: str,
-              key: str,
-              expected: str,
-              transform: Callable[[Any], str],
-              check=_check) -> None:
-        """ Check the test property. """
-        try:
-            line = self.output_line_ref(info[f"line-{key}"])
-        except KeyError:
-            line = "?"
-            reported = "?"
-        else:
-            reported = transform(info[key])
-        status = check(expected, reported)
-        if status != "OK":
-            self.add_error(f"unexpected-{key}")
-        rows.append([name, line, reported, expected, status])
-
-    def check_property(self, rows: list[list[str]], info: dict, key: str,
-                       property_key: str) -> None:
-        """ Check the property. """
-        prop = self.properties[property_key]
-        self.check(rows, info, prop.name, key, prop.expected,
-                   _PROPERTY_TRANSFORM.get(prop.type, _invisible_spaces))
-
-    def check_rtems_commit(self, rows: list[list[str]], info: dict) -> None:
-        """ Check the RTEMS Git commit. """
-        self.check_property(rows, info, "version", "rtems-commit")
-
-    def check_compiler(self, rows: list[list[str]], info: dict,
-                       key: str) -> None:
-        """ Check the compiler version. """
-        self.check_property(rows, info, key, "compiler-version")
-
-    def _check_build_info(self, rows: list[list[str]], info: dict) -> None:
-        for option in ("RTEMS_DEBUG", "RTEMS_MULTIPROCESSING",
-                       "RTEMS_PARAVIRT", "RTEMS_POSIX_API", "RTEMS_PROFILING",
-                       "RTEMS_SMP"):
-            self.check(rows, info, option, "build",
-                       _listed(option in self.enabled_set),
-                       functools.partial(_option, option))
-
-    def check_build_options(self, rows: list[list[str]], info: dict) -> None:
-        """ Check the test suite build options. """
-        for option in ("debug", "multiprocessing", "posix-api", "profiling",
-                       "smp"):
-            key = f"rtems-{option}"
-            name = key.replace("-", "_").upper()
-            self.check(rows, info, name, key,
-                       _zero_one(name in self.enabled_set), _zero_one)
-
-    def check_target_hash(self, _expected: str, reported: str) -> str:
-        """ Check the target hash. """
-        return _ok(reported in self.target_hashes)
-
-    def check_validations_by_test(self, test_aggregator: TestAggregator,
-                                  target_uid: str) -> None:
-        """
-        Check that each validation by test has a test result for the target.
-        """
-        for item in test_aggregator.spec.related_validations_by_test:
-            if target_uid not in item.view.get("test-results", {}):
-                text = "There are no test results available for this target."
-                verification_uid = self.verifications.get(item.uid, None)
-                failures = self.unexpected_failures
-                if verification_uid is not None:
-                    verification = self.item.cache[verification_uid]
-                    if "no-test-results" in verification[
-                            "acceptable-test-errors"]:
-                        failures = self.expected_failures
-                        text = verification["text"]
-                failures.setdefault(self.target_uid, {}).setdefault(
-                    (item, text), {})
+                                    self.content.add_list(
+                                        sorted(
+                                            _format_subject(
+                                                self.mapper, subject)
+                                            for subject in subjects))
 
     def add_table(self, rows: list[list[str]], widths: list[int]) -> None:
         """ Add a table to the content with the rows and widths. """
         self.content.add_grid_table(rows, widths, font_size=-3)
 
-    def add_test_info(self, info: dict) -> None:
-        """ Add the test information to the content. """
+    def add_checks(self, checks: list[TestCheck]) -> None:
+        """ Add a table of the checks to the content. """
         rows = [_HEADER]
-        try:
-            begin = self.output_line_ref(info["line-begin-of-test"])
+        for check in checks:
+            line = "?" if check.line is None else self.output_line_ref(
+                check.line)
+            rows.append([
+                check.name, line,
+                _reported(check),
+                _expected(check),
+                _ok(check.ok)
+            ])
+        self.add_table(rows, _WIDTHS)
+
+    def add_test_info(self, info_checks: InfoChecks) -> None:
+        """ Add the checks of the test information to the content. """
+        if info_checks.begin is None:
+            self.content.wrap(ERRORS["no-begin-of-test-message"])
+        else:
+            begin = self.output_line_ref(info_checks.begin)
             self.content.wrap(
                 f"There is a valid begin of test message at line {begin}.")
-        except KeyError:
-            self.add_error("no-begin-of-test-message", True)
         self.content.gap = False
-        try:
-            end = self.output_line_ref(info["line-end-of-test"])
+        if info_checks.end is None:
+            self.content.wrap(ERRORS["no-end-of-test-message"])
+        else:
+            end = self.output_line_ref(info_checks.end)
             self.content.wrap(f"""There is a valid end of test message at line
 {end}.  This indicates that the test program executed without a detected
 error.""")
-        except KeyError:
-            self.add_error("no-end-of-test-message", True)
         self.content.gap = False
         self.content.wrap("""The following table lists an evaluation of the
 reported test information.""")
-        self.check_rtems_commit(rows, info)
-        self._check_build_info(rows, info)
-        self.check_compiler(rows, info, "tools")
-        self.add_table(rows, _WIDTHS)
+        self.add_checks(info_checks.checks)
 
-    def add_limits(self, env_name: str, env_data: dict, limits: dict) -> None:
+    def add_limits(self, checks: list[LimitCheck]) -> None:
         """ Add the runtime performance limits to the content. """
         rows = [["Limit Kind", "Specified Limits", "Actual Value", "Status"]]
-        value = env_data["min"]
-        lower_bound = limits[env_name]["min-lower-bound"]
-        status = _ok(lower_bound <= value)
-        if status != "OK":
-            self.add_error("unexpected-runtime-minimum")
-        rows.append([
-            "Minimum", f"{duration(lower_bound)} :math:`\\leq` Minimum",
-            duration(value), status
-        ])
-        value = env_data["q2"]
-        lower_bound = limits[env_name]["median-lower-bound"]
-        upper_bound = limits[env_name]["median-upper-bound"]
-        status = _ok(lower_bound <= value <= upper_bound)
-        if status != "OK":
-            self.add_error("unexpected-runtime-median")
-        rows.append([
-            "Median", f"{duration(lower_bound)} :math:`\\leq` Median "
-            f":math:`\\leq` {duration(upper_bound)}",
-            duration(value), status
-        ])
-        value = env_data["max"]
-        upper_bound = limits[env_name]["max-upper-bound"]
-        status = _ok(value <= upper_bound)
-        if status != "OK":
-            self.add_error("unexpected-runtime-maximum")
-        rows.append([
-            "Maximum", f"Maximum :math:`\\leq` {duration(upper_bound)}",
-            duration(value), status
-        ])
+        rows.extend(_limit_row(check) for check in checks)
         self.add_table(rows, [15, 45, 25, 15])
-
-    def _count_failures(self, failures: _Failures) -> int:
-        return sum(
-            len(texts)
-            for by_config in failures.get(self.target_uid, {}).values()
-            for texts in by_config.values())
-
-    @contextmanager
-    def program_scope(self, uids: Iterable[str]) -> Iterator[None]:
-        """
-        Open a scope which counts the test program by its verdict.
-
-        A program which reports no failure is an unexpected pass if a
-        verification of the program or of one of its test cases expects a
-        failure.
-        """
-        unexpected = self._count_failures(self.unexpected_failures)
-        expected = self._count_failures(self.expected_failures)
-        yield
-        if self._count_failures(self.unexpected_failures) > unexpected:
-            verdict = "unexpected-failures"
-        elif self._count_failures(self.expected_failures) > expected:
-            verdict = "expected-failures"
-        elif any(uid in self.verifications for uid in uids):
-            verdict = "unexpected-passes"
-        else:
-            verdict = "passed"
-        counts = self.program_counts.setdefault(self.target_uid,
-                                                dict.fromkeys(_VERDICTS, 0))
-        counts[verdict] += 1
 
     @contextmanager
     def file_scope(self, file_path: str, data: dict) -> Iterator[str]:
@@ -465,7 +247,7 @@ reported test information.""")
         file_name = os.path.basename(data["report-file"])
         self.content.add(file_name)
         content = self.content
-        self.content = SphinxContent(context=self.context)
+        self.content = SphinxContent(context=content.context)
         yield file_name
         self.content.write(
             os.path.join(os.path.dirname(file_path), f"{file_name}.rst"))
@@ -484,44 +266,15 @@ def _add_test_output(ctx: _TestContext, report: dict) -> None:
         _add_output(ctx, report)
 
 
-def _get_reasons(target_uid: str, item_text: tuple[Item, str],
-                 by_config: dict[str, set[str]]) -> set[str]:
-    # The coverage issues of a target map an issue to the scopes.  The errors
-    # of a test map a configuration to the error texts.  The other failures
-    # state their reason in the text.
-    if item_text[0].uid == target_uid:
-        return set(by_config)
-    if by_config:
-        return set(itertools.chain.from_iterable(by_config.values()))
-    return {item_text[1]}
-
-
-def _save_failures(destination: DirectoryState, ctx: _TestContext) -> None:
-    failures = ctx.unexpected_failures
-    target_to_failures: dict[str, list[str]] = {}
-    target_to_reasons: dict[str, dict[str, list[str]]] = {}
-    for target_uid, by_test in sorted(failures.items()):
-        target_to_failures[target_uid] = [
-            item_text[0].uid for item_text in sorted(by_test.keys())
-        ]
-        reasons: dict[str, set[str]] = {}
-        for item_text, by_config in by_test.items():
-            reasons.setdefault(item_text[0].uid, set()).update(
-                _get_reasons(target_uid, item_text, by_config))
-        target_to_reasons[target_uid] = {
-            uid: sorted(texts)
-            for uid, texts in sorted(reasons.items())
-        }
-    destination["unexpected-test-failures"] = target_to_failures
-    destination["unexpected-test-failure-reasons"] = target_to_reasons
-    destination["test-program-counts"] = ctx.program_counts
-
-
 class TestReporter(DocumentBuilder):
     """ Builds a test report. """
 
     def __init__(self, director: PackageBuildDirector, item: Item):
         super().__init__(director, item)
+        if any(True for _ in self.input_links("test-property")):
+            raise ValueError(
+                f"{self.uid}: the test properties are inputs of the test "
+                "aggregation and not of the test report")
         self.mapper.add_get_value(f"{self.item.type}:/reports", self._reports)
 
     def _add_image(self, ctx: _TestContext, base: str | None) -> None:
@@ -545,7 +298,6 @@ measured on this target and configuration in the listed measurement
 environments.""")
                 self._add_image(ctx, measurement_data.get("boxplot"))
                 uid_to_label[req_uid] = ctx.content.get_label()
-                limits = ctx.limits_by_req[req.uid]
                 for env_name, env_data in sorted(
                         measurement_data["variants"].items(),
                         key=environment_order):
@@ -558,7 +310,7 @@ environments.""")
 measurement environment was generated from lines {begin} up to and including
 {end} of the test output.""")
                     self._add_image(ctx, env_data.get("histogram"))
-                    ctx.add_limits(env_name, env_data, limits)
+                    ctx.add_limits(ctx.analysis.get_limit_checks(env_data))
         return uid_to_label
 
     def _add_remarks(self, ctx: _TestContext, remarks: list) -> None:
@@ -588,7 +340,6 @@ measurement environment was generated from lines {begin} up to and including
                         uid_to_label: dict[str, str]) -> None:
         for case_uid, case_data in sorted(suite_data["test-cases"].items()):
             case_item = self.item.cache[case_uid]
-            ctx.item = case_item
             with ctx.content.section(f"Test case - {case_item.spec_2}",
                                      label=case_data["label"]):
                 ctx.content.add(f"""This test case is specified by
@@ -599,14 +350,7 @@ measurement environment was generated from lines {begin} up to and including
                 ctx.content.add(f"""The following table lists an evaluation of
 the test case information reported in lines {begin} up to and including {end}
 of the test output.""")
-                rows = [_HEADER]
-                ctx.check(rows, case_data, "Step Count", "step-count", "> 0",
-                          str, _check_gt_zero)
-                ctx.check(rows, case_data, "Failed Steps Count",
-                          "failed-steps-count", "0", str, _check_eq_zero)
-                ctx.check(rows, case_data, "Duration", "duration",
-                          ":math:`\\geq` 0", duration, _check_duration)
-                ctx.add_table(rows, _WIDTHS)
+                ctx.add_checks(ctx.analysis.get_checks(case_data))
                 uids = set(
                     measurement_data["requirement-uid"]
                     for measurement_data in case_data["runtime-measurements"])
@@ -621,7 +365,6 @@ following runtime measurements presented in the preceeding sections:""")
     def _add_one_test_suite(self, ctx: _TestContext, suite_uid: str,
                             suite_data: dict) -> None:
         suite_item = self.item.cache[suite_uid]
-        ctx.item = suite_item
         suite_section = f"Test suite - {suite_item.spec_2}"
         with ctx.content.section(suite_section, label=suite_data["label"]):
             report = suite_data["report"]
@@ -629,7 +372,7 @@ following runtime measurements presented in the preceeding sections:""")
             ctx.content.wrap(f"""This test suite is specified by
 {self.mapper.get_link(suite_item)}.""")
             ctx.content.gap = False
-            ctx.add_test_info(report["info"])
+            ctx.add_test_info(ctx.analysis.get_info_checks(report))
             begin = ctx.output_line_ref(report["test-suite"]["line-begin"])
             end = ctx.output_line_ref(report["test-suite"]["line-end"])
             ctx.content.wrap(f"""The following table lists an evaluation of the
@@ -643,50 +386,25 @@ of this test suite are presented in the following sections.""")
                 ctx.content.gap = False
                 ctx.content.wrap("""The test cases of this test suite are
 presented in the following sections.""")
-            rows = [_HEADER]
-            info = report["test-suite"]
-            ctx.check_compiler(rows, info, "compiler")
-            ctx.check_rtems_commit(rows, info)
-            ctx.check(rows, info, "BSP", "bsp", _invisible_spaces(ctx.bsp),
-                      _invisible_spaces)
-            ctx.check(rows, info, "Build Label", "build-label",
-                      ctx.build_label, _invisible_spaces)
-            ctx.check(rows, info, "Target Hash", "target-hash",
-                      ctx.target_hashes_display, _target_hash,
-                      ctx.check_target_hash)
-            ctx.check_build_options(rows, info)
-            ctx.check(rows, info, "Step Count", "step-count", "> 0", str,
-                      _check_gt_zero)
-            ctx.check(rows, info, "Failed Steps Count", "failed-steps-count",
-                      "0", str, _check_eq_zero)
-            ctx.check(rows, info, "Duration", "duration", ":math:`\\geq` 0",
-                      duration, _check_duration)
-            ctx.check(rows, info, "Report Hash", "report-hash",
-                      _invisible_spaces(info["report-hash-calculated"]),
-                      _invisible_spaces)
-            ctx.add_table(rows, _WIDTHS)
+            ctx.add_checks(ctx.analysis.get_checks(suite_data))
             uid_to_label = self._add_runtime_measurements(ctx, suite_data)
             self._add_test_cases(ctx, suite_data, uid_to_label)
             _add_test_output(ctx, report)
 
-    def _add_test_suites(self, ctx: _TestContext) -> None:
+    def _add_test_suites(self, ctx: _TestContext, config_data: dict) -> None:
         for suite_uid, suite_data in sorted(
-                ctx.config_data["test-suites"].items()):
-            uids = [suite_uid, *suite_data["test-cases"]]
-            with ctx.file_scope(self.file_path,
-                                suite_data), ctx.program_scope(uids):
+                config_data["test-suites"].items()):
+            with ctx.file_scope(self.file_path, suite_data):
                 self._add_one_test_suite(ctx, suite_uid, suite_data)
 
-    def _add_test_programs(self, ctx: _TestContext) -> None:
-        for uid, report in sorted(ctx.config_data["test-programs"].items()):
-            with ctx.file_scope(self.file_path, report) as file_name, \
-                    ctx.program_scope([uid]):
+    def _add_test_programs(self, ctx: _TestContext, config_data: dict) -> None:
+        for uid, report in sorted(config_data["test-programs"].items()):
+            with ctx.file_scope(self.file_path, report) as file_name:
                 program_item = self.item.cache[uid]
-                ctx.item = program_item
                 program_section = f"Test program - {program_item.spec_2}"
                 with ctx.content.section(program_section, label=file_name):
                     ctx.begin_report(report)
-                    ctx.add_test_info(report["info"])
+                    ctx.add_test_info(ctx.analysis.get_info_checks(report))
                     for image in report.get("images", []):
                         ctx.content.add_image(
                             os.path.relpath(f"{image}.*",
@@ -694,11 +412,11 @@ presented in the following sections.""")
                             "50%")
                     _add_test_output(ctx, report)
 
-    def _add_other_programs(self, ctx: _TestContext) -> None:
+    def _add_other_programs(self, ctx: _TestContext,
+                            config_data: dict) -> None:
         for executable, report in sorted(
-                ctx.config_data["other-programs"].items()):
-            with ctx.file_scope(self.file_path, report) as file_name, \
-                    ctx.program_scope([]):
+                config_data["other-programs"].items()):
+            with ctx.file_scope(self.file_path, report) as file_name:
                 program_section = f"Other program - {executable}"
                 with ctx.content.section(program_section, label=file_name):
                     ctx.begin_report(report)
@@ -708,46 +426,19 @@ presented in the following sections.""")
                       test_aggregator: TestAggregator) -> None:
         with ctx.content.section("Coverage data"):
             coverage_count = 0
-            anchors = test_aggregator.anchor_target_uids(self.mapper)
             with ctx.content.directive("toctree"):
                 report = {"report-file": "coverage"}
                 with ctx.file_scope(self.file_path, report):
                     with ctx.content.label_scope("Coverage"):
                         for target_data in test_aggregator.targets.values():
-                            ctx.verifications = target_data[
-                                "test-error-verifications"]
-                            target_uid = target_data["uid"]
-                            target_item = self.item.cache[target_uid]
                             target_section = f"Target - {target_data['name']}"
-                            failure_key = (
-                                target_item,
-                                "For this target, the following code "
-                                "coverage issues were present.")
-                            issues: dict[
-                                str, set[str]] = ctx.unexpected_failures.get(
-                                    target_uid, {}).get(failure_key, {})
-                            not_run_scopes: set[str] = set()
                             with ctx.content.section(target_section):
                                 for config_data in target_data["configs"]:
                                     if "coverage" not in config_data:
                                         continue
                                     coverage_count += 1
-                                    not_run_scopes.update(
-                                        f"Scope - {coverage['scope']}"
-                                        for coverage in config_data["coverage"]
-                                        if coverage.get("not-run-groups", []))
                                     test_aggregator.add_coverage_of_config(
-                                        ctx.content, self.mapper, config_data,
-                                        issues)
-                            if not_run_scopes and not anchors:
-                                issues.setdefault(
-                                    "Coverage limits met only with an "
-                                    "excluded test, and no target gives "
-                                    "complete evidence",
-                                    set()).update(not_run_scopes)
-                            if issues:
-                                ctx.unexpected_failures.setdefault(
-                                    target_uid, {})[failure_key] = issues
+                                        ctx.content, self.mapper, config_data)
                         if coverage_count:
                             test_aggregator.add_coverage_across_targets(
                                 ctx.content, self.mapper)
@@ -757,35 +448,29 @@ presented in the following sections.""")
     def _reports(self, _unused: ItemGetValueContext) -> str:
         test_aggregator = self.input("test-aggregation")
         assert isinstance(test_aggregator, TestAggregator)
-        ctx = _TestContext(self)
-        for target_uid, target_data in test_aggregator.targets.items():
-            ctx.limits_uid = target_data["limits-uid"]
-            ctx.limits_by_req = target_data["limits-by-requirement"]
-            ctx.target_hashes = ("\u200b", ) + tuple(
-                _invisible_spaces(text) for text in target_data["target-hash"])
-            ctx.target_hashes_display = ", ".join(ctx.target_hashes[1:])
-            ctx.target_uid = target_uid
-            ctx.verifications = target_data["test-error-verifications"]
+        analysis = test_aggregator.get_analysis()
+        ctx = _TestContext(self, analysis)
+        for target_data in test_aggregator.targets.values():
             with ctx.content.section(f"Target - {target_data['name']}",
                                      label=target_data["label"]):
                 with ctx.content.section("Test procedure description"):
                     ctx.content.add(target_data["test-runner-description"])
                 for config_data in target_data["configs"]:
-                    ctx.config_data = config_data
                     config_key = config_data["config-key"]
                     config_section = f"Configuration - {config_key}"
-                    ctx.build_label = _invisible_spaces(
-                        config_data["build-label"])
                     with ctx.content.section(config_section,
                                              label=config_data["label"]):
                         with ctx.content.directive("toctree"):
-                            self._add_test_suites(ctx)
-                            self._add_test_programs(ctx)
-                            self._add_other_programs(ctx)
-            ctx.check_validations_by_test(test_aggregator, target_uid)
+                            self._add_test_suites(ctx, config_data)
+                            self._add_test_programs(ctx, config_data)
+                            self._add_other_programs(ctx, config_data)
         self._add_coverage(ctx, test_aggregator)
-        ctx.add_failures("expected", ctx.expected_failures, test_aggregator)
-        ctx.add_failures("unexpected", ctx.unexpected_failures,
+        ctx.add_failures("expected", analysis.expected_failures,
                          test_aggregator)
-        _save_failures(self, ctx)
+        ctx.add_failures("unexpected", analysis.unexpected_failures,
+                         test_aggregator)
+        self["unexpected-test-failures"] = analysis.get_unexpected_failures()
+        self["unexpected-test-failure-reasons"] = \
+            analysis.get_unexpected_failure_reasons()
+        self["test-program-counts"] = analysis.program_counts
         return ctx.content.join()

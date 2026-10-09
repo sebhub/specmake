@@ -1,6 +1,6 @@
 SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
-- Copyright (C) 2025 embedded brains GmbH & Co. KG
+- Copyright (C) 2025, 2026 embedded brains GmbH & Co. KG
 directory: ${.:/component/deployment-directory}/doc-djf-tr-3
 directory-state-type: sphinx
 document-base-path: /
@@ -10,7 +10,7 @@ document-components:
   file: source/index.rst
 document-contributors: []
 document-copyrights:
-- Copyright (C) 2025 embedded brains GmbH & Co. KG
+- Copyright (C) 2025, 2026 embedded brains GmbH & Co. KG
 document-html-footer: footer
 document-html-help-base-name: TR
 document-key: blub
@@ -46,22 +46,6 @@ links:
   name: source
   role: input
   uid: ../source/doc-djf-tr
-- hash: null
-  key: compiler-version
-  name: test-property
-  property-name: RSB Git Commit
-  role: input
-  type: rtems-source-builder-version
-  expected: 21446e6af24b170f0ad18fd960661d4e5d7249de
-  uid: ../component
-- hash: null
-  key: rtems-commit
-  name: test-property
-  property-name: RTEMS Git Commit
-  role: input
-  type: rtems-version
-  expected: 58bff622d610865c76da045e8cc67aa56c32b7c8
-  uid: ../component
 - name: build
   role: output
   uid: ../build/doc-djf-tr-3

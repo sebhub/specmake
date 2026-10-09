@@ -39,7 +39,7 @@ from .archiver import Archiver
 from .directorystate import DirectoryState, RepositoryState
 from .docbuilder import DocumentBuilder
 from .membench import generate, generate_variants_table, MembenchVariant
-from .pkgitems import BuildItemMapper, PackageBuildDirector
+from .pkgitems import PackageBuildDirector
 from .packagechanges import PackageChanges
 from .testaggregator import (CoverageGap, CoverageScope, NotValidatedItem,
                              RetriedProgram, TestAggregator)
@@ -604,7 +604,7 @@ def _add_coverage(content: TextContent, scopes: list[CoverageScope]) -> None:
 
 
 def _gather_aggregations(
-    test_aggregators: list[TestAggregator], mapper: BuildItemMapper
+    test_aggregators: list[TestAggregator]
 ) -> tuple[list[CoverageScope], list[NotValidatedItem], list[RetriedProgram]]:
     # Each component validates the specification in its own item view, so
     # query each test aggregator in the scope of its component.
@@ -613,7 +613,7 @@ def _gather_aggregations(
     retried: list[RetriedProgram] = []
     for test_aggregator in test_aggregators:
         with test_aggregator.component.scope():
-            scopes.extend(test_aggregator.get_coverage_scopes(mapper))
+            scopes.extend(test_aggregator.get_coverage_scopes())
             not_validated.update(test_aggregator.get_not_validated_items())
             retried.extend(test_aggregator.get_retried_programs())
     return scopes, sorted(not_validated), retried
@@ -646,8 +646,7 @@ class PackageSummary(DirectoryState):
         for test_aggregator in self.inputs("test-aggregation"):
             assert isinstance(test_aggregator, TestAggregator)
             test_aggregators.append(test_aggregator)
-        scopes, items, retried = _gather_aggregations(test_aggregators,
-                                                      self.mapper)
+        scopes, items, retried = _gather_aggregations(test_aggregators)
         root_inspected = bool(test_aggregators)
         content = CommonMarkContent(0, context=self.mapper.context)
         with content.section(f"Package summary - {self.component['ident']}"):

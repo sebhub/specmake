@@ -1379,7 +1379,7 @@ class _Aggregator:
     def _check_scope(self):
         assert self._active[-1:] == [self.component.ident]
 
-    def get_coverage_scopes(self, _mapper):
+    def get_coverage_scopes(self):
         self._check_scope()
         return []
 
@@ -1402,7 +1402,7 @@ def test_packagesummary_gather_aggregations():
     ]
     scopes, items, retried = specmake.packagemanual._gather_aggregations(
         [_Aggregator("uni", active, uni),
-         _Aggregator("smp", active, [smp])], None)
+         _Aggregator("smp", active, [smp])])
     assert scopes == []
     assert items == [smp, uni[1], uni[0]]
     assert retried == []

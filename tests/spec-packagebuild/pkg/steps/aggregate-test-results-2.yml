@@ -1,6 +1,6 @@
 SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
-- Copyright (C) 2025 embedded brains GmbH & Co. KG
+- Copyright (C) 2025, 2026 embedded brains GmbH & Co. KG
 enabled-by: aggregate-test-results
 links:
 - hash: null
@@ -15,6 +15,22 @@ links:
   name: test-aggregation
   role: input-to
   uid: ../deployment/doc-package-summary
+- hash: null
+  key: compiler-version
+  name: test-property
+  property-name: RSB Git Commit
+  role: input
+  type: rtems-source-builder-version
+  expected: 21446e6af24b170f0ad18fd960661d4e5d7249de
+  uid: ../component
+- hash: null
+  key: rtems-commit
+  name: test-property
+  property-name: RTEMS Git Commit
+  role: input
+  type: rtems-version
+  expected: 58bff622d610865c76da045e8cc67aa56c32b7c8
+  uid: ../component
 pkg-type: test-aggregator
 report-file: reports.html
 type: pkg

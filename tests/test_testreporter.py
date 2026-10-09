@@ -28,9 +28,11 @@ from pathlib import Path
 
 import pytest
 
-from specmake.testreporter import _TestContext
+from specmake.testanalysis import TestAnalysis, _Analyser
 
 from .util import create_package, get_document_text
+
+TestAnalysis.__test__ = False
 
 
 def test_testreporter(caplog, tmpdir):
@@ -2265,23 +2267,22 @@ def _add_failure(failures, target_uid, uid):
         (uid, ""), {}).setdefault("c", set()).add("e")
 
 
-def test_testreporter_program_scope():
-    ctx = _TestContext.__new__(_TestContext)
-    ctx.expected_failures = {}
-    ctx.unexpected_failures = {}
-    ctx.program_counts = {}
-    ctx.target_uid = "/t"
-    ctx.verifications = {"/xfail": "/v"}
-    with ctx.program_scope(["/pass"]):
+def test_testanalysis_program_scope():
+    analyser = _Analyser.__new__(_Analyser)
+    analyser.analysis = TestAnalysis()
+    analyser.target_uid = "/t"
+    analyser.verifications = {"/xfail": "/v"}
+    failures = analyser.analysis
+    with analyser.program_scope(["/pass"]):
         pass
-    with ctx.program_scope(["/xfail"]):
+    with analyser.program_scope(["/xfail"]):
         pass
-    with ctx.program_scope(["/xfail"]):
-        _add_failure(ctx.expected_failures, "/t", "/xfail")
-    with ctx.program_scope(["/fail"]):
-        _add_failure(ctx.expected_failures, "/t", "/both")
-        _add_failure(ctx.unexpected_failures, "/t", "/fail")
-    assert ctx.program_counts == {
+    with analyser.program_scope(["/xfail"]):
+        _add_failure(failures.expected_failures, "/t", "/xfail")
+    with analyser.program_scope(["/fail"]):
+        _add_failure(failures.expected_failures, "/t", "/both")
+        _add_failure(failures.unexpected_failures, "/t", "/fail")
+    assert failures.program_counts == {
         "/t": {
             "expected-failures": 1,
             "passed": 1,
@@ -2302,3 +2303,16 @@ def test_testreporter_no_images(caplog, tmpdir):
     assert "Runtime measurement - spec:/​rtems/​req/​perf" in text
     assert "Measurement environment - HotCache" in text
     assert "perf-images" not in text
+    aggregator = director["/pkg/steps/aggregate-test-results"]
+    assert aggregator.get_analysis() is aggregator.get_analysis()
+
+
+def test_testreporter_test_property(caplog, tmpdir):
+    with pytest.raises(ValueError,
+                       match="test properties are inputs of the test "
+                       "aggregation"):
+        package = create_package(caplog, Path(tmpdir),
+                                 Path("spec-packagebuild"),
+                                 ["test-report-test-property"])
+        package.director.build_package(
+            only=["/pkg/deployment/doc-djf-tr-test-property"])

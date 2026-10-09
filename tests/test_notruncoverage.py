@@ -88,7 +88,7 @@ def _file_coverage(line_count, branch_count, function_count):
 
 def _summary(not_run_groups):
     return _CoverageSummary(
-        _Aggregator(), _Mapper(), {
+        _Aggregator(), {
             "files": [_file_coverage(0, 0, 0)],
             "html-directory": "html",
             "limits-by-area": _LIMITS,
@@ -325,7 +325,7 @@ def test_a_file_of_mixed_gaps_belongs_to_the_excluded_tests():
     justification of the specification.
     """
     summary = _CoverageSummary(
-        _Aggregator(), _Mapper(), {
+        _Aggregator(), {
             "files": [_file_coverage(0, 0, 0)],
             "html-directory":
             "html",

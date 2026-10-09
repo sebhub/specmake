@@ -1,6 +1,6 @@
 SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
-- Copyright (C) 2025 embedded brains GmbH & Co. KG
+- Copyright (C) 2025, 2026 embedded brains GmbH & Co. KG
 enabled-by: true
 links:
 - role: spec-member
@@ -30,11 +30,11 @@ spec-info:
       type:
         description: |
           It shall be the type of the test property.  The type is used to
-          evaluate and present the property in test reports.
+          evaluate the property in the analysis of the test results.
         spec-type: str
     description: |
-      It defines the test property input role of links and is used to provide a
-      property for a test report.
+      It defines the test property input role of links.  A test aggregation
+      uses it to provide a property for the analysis of its test results.
     mandatory-attributes: all
 spec-name: Test Property Input Link Role
 spec-type: pkg-input-test-property-role
