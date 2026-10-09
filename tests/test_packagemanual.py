@@ -30,13 +30,15 @@ import os
 from pathlib import Path
 import pickle
 import subprocess
+from types import SimpleNamespace
 
 import specitems
 from specitems import CommonMarkContent, ItemGetValueContext
 
 import specmake
 from specmake import PackageComponent
-from specmake.packagemanual import _Verdicts, _make_verdicts
+from specmake.packagemanual import (_FailedSubstitution, _Verdicts,
+                                    _make_verdicts)
 from specmake.testaggregator import (CoverageGap, CoverageScope,
                                      NotValidatedItem)
 from specmake.testanalysis import NO_TEST_RESULTS, TestAnalysis
@@ -1104,6 +1106,8 @@ Support the package build.
 
 - 69 items are not validated
 
+- 1 item text fails the substitution
+
 <a id="PackageSummarySparcGr712rcSmp4Warnings"></a>
 
 ## ⚠️ Warnings
@@ -1218,6 +1222,16 @@ The specification root is not validated.  The table lists the related items with
  | sparc/gr712rc/smp/4 | /rtems/val/test-case                      | test-case                                                  |
  | sparc/gr712rc/smp/4 | /rtems/val/test-case-fail                 | test-case                                                  |
  | sparc/gr712rc/smp/4 | /rtems/val/test-case-run                  | test-case                                                  |
+
+<a id="PackageSummarySparcGr712rcSmp4FailedSubstitutions"></a>
+
+## Failed substitutions
+
+The table lists the items with a text which fails the substitution and the first error of each item.
+
+ | Component           | Item                      | Error                                                                                                                                                            |
+ | ------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+ | sparc/gr712rc/smp/4 | /glossary/softwareproduct | substitution in text of spec:/glossary/softwareproduct (mapper spec:/req/root) using prefix '' failed in line 1 of '${rtems:/term}': KeyError: '/glossary/rtems' |
 
 <a id="PackageSummarySparcGr712rcSmp4Coverage"></a>
 
@@ -1360,6 +1374,7 @@ class _Aggregator:
         self.component = _Component(ident, active)
         self._active = active
         self._items = items
+        self.spec = SimpleNamespace(get_spec_root=lambda: ident)
 
     def _check_scope(self):
         assert self._active[-1:] == [self.component.ident]
@@ -1388,7 +1403,9 @@ class _Aggregator:
         return self.component.ident
 
 
-def test_packagesummary_gather_aggregations():
+def test_packagesummary_gather_aggregations(monkeypatch):
+    monkeypatch.setattr(specmake.packagemanual, "get_substitution_errors",
+                        lambda root: [("/x", f"{root} | e\nmore")])
     active: list[str] = []
     root = "requirement/non-functional/design"
     smp = NotValidatedItem("smp", (0, ), "/req/root", root)
@@ -1396,7 +1413,7 @@ def test_packagesummary_gather_aggregations():
         NotValidatedItem("uni", (1, 0), "/a", "interface/define"),
         NotValidatedItem("uni", (0, ), "/req/root", root)
     ]
-    verdicts, scopes, items, retried = \
+    verdicts, scopes, items, failed, retried = \
         specmake.packagemanual._gather_aggregations(
             [_Aggregator("uni", active, uni),
              _Aggregator("smp", active, [smp])])
@@ -1410,6 +1427,10 @@ def test_packagesummary_gather_aggregations():
     ]
     assert scopes == []
     assert items == [smp, uni[1], uni[0]]
+    assert failed == [
+        _FailedSubstitution("smp", "/x", "smp \\| e"),
+        _FailedSubstitution("uni", "/x", "uni \\| e")
+    ]
     assert retried == []
     assert active == []
 
@@ -1444,7 +1465,7 @@ def test_packagesummary_make_verdicts():
 def test_packagesummary_status_without_aggregation():
     content = CommonMarkContent(0, context="BSD-2-Clause")
     reports = [_Verdicts("c", {}, {}, {})]
-    specmake.packagemanual._add_status(content, reports, [], False)
+    specmake.packagemanual._add_status(content, reports, [], [], False)
     assert str(content) == """<a id="Passed"></a>
 
 # ✅ Passed
@@ -1465,11 +1486,12 @@ def test_packagesummary_sections(monkeypatch):
     rows = [["Component", "Target", "Configuration", "Scope", "File", "Spot"]]
     notes: list[str] = []
     specmake.packagemanual._add_gap_rows(rows, notes, scope, scope.gaps, False)
-    specmake.packagemanual._add_status(content, reports, [], True)
+    specmake.packagemanual._add_status(content, reports, [], [], True)
     specmake.packagemanual._add_warnings(content, [])
     specmake.packagemanual._add_test_overview(content, reports)
     specmake.packagemanual._add_unexpected_failures(content, reports)
     specmake.packagemanual._add_not_validated(content, [])
+    specmake.packagemanual._add_failed_substitutions(content, [])
     specmake.packagemanual._add_retried_programs(content, [])
     specmake.packagemanual._add_coverage(content, [])
     specmake.packagemanual._add_gap_section(content, "Gaps", rows, notes)
@@ -1478,7 +1500,7 @@ def test_packagesummary_sections(monkeypatch):
 
 # ✅ Passed
 
-There are no unexpected test failures.  All coverage scopes meet their limits.  There are no stale gap items.  The specification root is validated.
+There are no unexpected test failures.  All coverage scopes meet their limits.  There are no stale gap items.  The specification root is validated.  All item texts pass the substitution.
 
 <a id="TestOverview"></a>
 

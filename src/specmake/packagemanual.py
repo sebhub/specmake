@@ -43,6 +43,7 @@ from .pkgitems import PackageBuildDirector
 from .packagechanges import PackageChanges
 from .testaggregator import (CoverageGap, CoverageScope, NotValidatedItem,
                              RetriedProgram, TestAggregator)
+from .rtems import get_substitution_errors
 from .testanalysis import NO_TEST_RESULTS, TestAnalysis
 from .testrunner import TestLog
 from .util import variant_order
@@ -437,6 +438,12 @@ _COUNT_KEYS = ("passed", "expected-failures", "unexpected-failures",
                "unexpected-passes")
 
 
+class _FailedSubstitution(NamedTuple):
+    component: str
+    uid: str
+    error: str
+
+
 class _Verdicts(NamedTuple):
     component: str
     failures: dict[str, list[str]]
@@ -479,6 +486,7 @@ def _count(count: int, singular: str, plural: str) -> str:
 
 def _add_status(content: TextContent, verdicts: list[_Verdicts],
                 not_validated: list[NotValidatedItem],
+                failed_substitutions: list[_FailedSubstitution],
                 root_inspected: bool) -> None:
     # The test report lists the coverage issues of a target under the UID of
     # the target.  A coverage scope which misses its limits and a stale gap
@@ -502,13 +510,18 @@ def _add_status(content: TextContent, verdicts: list[_Verdicts],
         causes.append(
             _count(len(not_validated), "item is not validated",
                    "items are not validated"))
+    if failed_substitutions:
+        causes.append(
+            _count(len(failed_substitutions),
+                   "item text fails the substitution",
+                   "item texts fail the substitution"))
     if causes:
         with content.section("❌ Failed"):
             content.add_list(causes)
     else:
         with content.section("✅ Passed"):
-            root = "  The specification root is validated." \
-                if root_inspected else ""
+            root = "  The specification root is validated.  All item " \
+                "texts pass the substitution." if root_inspected else ""
             content.add("There are no unexpected test failures.  All "
                         "coverage scopes meet their limits.  There are no "
                         f"stale gap items.{root}")
@@ -570,6 +583,19 @@ def _add_not_validated(content: TextContent,
                                       for item in not_validated])
 
 
+def _add_failed_substitutions(
+        content: TextContent,
+        failed_substitutions: list[_FailedSubstitution]) -> None:
+    if failed_substitutions:
+        with content.section("Failed substitutions"):
+            content.add("The table lists the items with a text which fails "
+                        "the substitution and the first error of each item.")
+            content.add_simple_table(
+                [["Component", "Item", "Error"]] +
+                [[failed.component, failed.uid, failed.error]
+                 for failed in failed_substitutions])
+
+
 def _add_retried_programs(content: TextContent,
                           retried: list[RetriedProgram]) -> None:
     if retried:
@@ -605,7 +631,12 @@ class _Aggregations(NamedTuple):
     verdicts: list[_Verdicts]
     scopes: list[CoverageScope]
     not_validated: list[NotValidatedItem]
+    failed_substitutions: list[_FailedSubstitution]
     retried: list[RetriedProgram]
+
+
+def _first_line(text: str) -> str:
+    return text.splitlines()[0].replace("|", "\\|")
 
 
 def _make_verdicts(ident: str, analysis: TestAnalysis,
@@ -636,19 +667,24 @@ def _gather_aggregations(
     verdicts: list[_Verdicts] = []
     scopes: list[CoverageScope] = []
     not_validated: set[NotValidatedItem] = set()
+    failed_substitutions: set[_FailedSubstitution] = set()
     retried: list[RetriedProgram] = []
     for test_aggregator in test_aggregators:
         with test_aggregator.component.scope():
+            ident = test_aggregator.substitute("${.:/component/ident}")
             items = test_aggregator.get_not_validated_items()
             not_validated.update(items)
             verdicts.append(
-                _make_verdicts(
-                    test_aggregator.substitute("${.:/component/ident}"),
-                    test_aggregator.get_analysis(),
-                    set(item.uid for item in items)))
+                _make_verdicts(ident, test_aggregator.get_analysis(),
+                               set(item.uid for item in items)))
+            failed_substitutions.update(
+                _FailedSubstitution(ident, uid, _first_line(error))
+                for uid, error in get_substitution_errors(
+                    test_aggregator.spec.get_spec_root()))
             scopes.extend(test_aggregator.get_coverage_scopes())
             retried.extend(test_aggregator.get_retried_programs())
-    return _Aggregations(verdicts, scopes, sorted(not_validated), retried)
+    return _Aggregations(verdicts, scopes, sorted(not_validated),
+                         sorted(failed_substitutions), retried)
 
 
 class PackageSummary(DirectoryState):
@@ -658,12 +694,14 @@ class PackageSummary(DirectoryState):
     The summary states the overall status at its beginning.  It takes the
     verdicts from the analysis of each test aggregation and needs no test
     report.  A specification root which is not validated fails the package.
-    The summary then lists every related item which is not validated.  Only a
-    test aggregation inspects the specification root.  A test program with
-    failed attempts gives a warning.  The summary omits the sections of
-    warnings, failures, not validated items, gaps, stale gap items and retried
-    test programs without entries.  The summary lists the repositories of the
-    package, unless the list-repositories attribute is false.
+    The summary then lists every related item which is not validated.  An item
+    text which fails the substitution fails the package.  Only a test
+    aggregation inspects the specification root and the item texts.  A test
+    program with failed attempts gives a warning.  The summary omits the
+    sections of warnings, failures, not validated items, failed substitutions,
+    gaps, stale gap items and retried test programs without entries.  The
+    summary lists the repositories of the package, unless the
+    list-repositories attribute is false.
     """
 
     def run(self) -> None:
@@ -673,22 +711,25 @@ class PackageSummary(DirectoryState):
         for test_aggregator in self.inputs("test-aggregation"):
             assert isinstance(test_aggregator, TestAggregator)
             test_aggregators.append(test_aggregator)
-        verdicts, scopes, items, retried = _gather_aggregations(
-            test_aggregators)
-        root_inspected = bool(test_aggregators)
+        aggregations = _gather_aggregations(test_aggregators)
         content = CommonMarkContent(0, context=self.mapper.context)
         with content.section(f"Package summary - {self.component['ident']}"):
-            _add_status(content, verdicts, items, root_inspected)
-            _add_warnings(content, retried)
-            _add_test_overview(content, verdicts)
-            _add_unexpected_failures(content, verdicts)
-            _add_not_validated(content, items)
-            _add_coverage(content, scopes)
+            _add_status(content, aggregations.verdicts,
+                        aggregations.not_validated,
+                        aggregations.failed_substitutions,
+                        bool(test_aggregators))
+            _add_warnings(content, aggregations.retried)
+            _add_test_overview(content, aggregations.verdicts)
+            _add_unexpected_failures(content, aggregations.verdicts)
+            _add_not_validated(content, aggregations.not_validated)
+            _add_failed_substitutions(content,
+                                      aggregations.failed_substitutions)
+            _add_coverage(content, aggregations.scopes)
             rows = [[
                 "Component", "Target", "Configuration", "Scope", "File", "Spot"
             ]]
             notes: list[str] = []
-            for scope in scopes:
+            for scope in aggregations.scopes:
                 _add_gap_rows(rows, notes, scope, scope.gaps, False)
             _add_gap_section(content, "Unjustified gaps", rows, notes)
             rows = [[
@@ -696,10 +737,10 @@ class PackageSummary(DirectoryState):
                 "File", "Spot"
             ]]
             notes = []
-            for scope in scopes:
+            for scope in aggregations.scopes:
                 _add_gap_rows(rows, notes, scope, scope.stale, True)
             _add_gap_section(content, "Stale gap items", rows, notes)
-            _add_retried_programs(content, retried)
+            _add_retried_programs(content, aggregations.retried)
             if self.item.get("list-repositories", True):
                 with content.section("Repositories"):
                     self._add_repositories(content)
