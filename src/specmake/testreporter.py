@@ -524,6 +524,13 @@ class TestReporter(DocumentBuilder):
         super().__init__(director, item)
         self.mapper.add_get_value(f"{self.item.type}:/reports", self._reports)
 
+    def _add_image(self, ctx: _TestContext, base: str | None) -> None:
+        # Only a performance images item sets the base of an image.
+        if base is not None:
+            ctx.content.add_image(
+                os.path.relpath(f"{base}.*", os.path.dirname(self.file_path)),
+                "50%")
+
     def _add_runtime_measurements(self, ctx: _TestContext,
                                   suite_data: dict) -> dict[str, str]:
         uid_to_label: dict[str, str] = {}
@@ -536,9 +543,7 @@ class TestReporter(DocumentBuilder):
 {self.mapper.get_link(req, 'test-plan')}, the following runtime values were
 measured on this target and configuration in the listed measurement
 environments.""")
-                ctx.content.add_image(
-                    os.path.relpath(f"{measurement_data['boxplot']}.*",
-                                    os.path.dirname(self.file_path)), "50%")
+                self._add_image(ctx, measurement_data.get("boxplot"))
                 uid_to_label[req_uid] = ctx.content.get_label()
                 limits = ctx.limits_by_req[req.uid]
                 for env_name, env_data in sorted(
@@ -552,10 +557,7 @@ environments.""")
                     ctx.content.add(f"""The runtime measurement report for this
 measurement environment was generated from lines {begin} up to and including
 {end} of the test output.""")
-                    ctx.content.add_image(
-                        os.path.relpath(f"{env_data['histogram']}.*",
-                                        os.path.dirname(self.file_path)),
-                        "50%")
+                    self._add_image(ctx, env_data.get("histogram"))
                     ctx.add_limits(env_name, env_data, limits)
         return uid_to_label
 

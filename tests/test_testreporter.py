@@ -2289,3 +2289,16 @@ def test_testreporter_program_scope():
             "unexpected-passes": 1
         }
     }
+
+
+def test_testreporter_no_images(caplog, tmpdir):
+    package = create_package(caplog, Path(tmpdir), Path("spec-packagebuild"),
+                             ["aggregate-test-results", "test-reporter"])
+    director = package.director
+    director.build_package(only=["/pkg/deployment/doc-djf-tr"])
+    path = (Path(director["/pkg/build/doc-djf-tr"].directory) / "source" /
+            "a-build-config-key-testsuites-performance-no-clock-0.rst")
+    text = get_document_text(tmpdir, path)
+    assert "Runtime measurement - spec:/​rtems/​req/​perf" in text
+    assert "Measurement environment - HotCache" in text
+    assert "perf-images" not in text

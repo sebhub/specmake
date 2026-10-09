@@ -1381,6 +1381,15 @@ Changes
 .. srs-constraints end"""
 
 
+def test_srsbuilder_no_images(caplog, tmpdir):
+    _, text = build_document(caplog, tmpdir, "doc-ts-srs",
+                             ["aggregate-test-results", "link-hub", "ts-srs"])
+    assert """reported `runtime performance measurements
+</a-build-config-key-testsuites-performance-no-clock-0.html#abuildconfigkeytestsuitesperformancenoclock0rtemsreqperf>`__.
+""" in text
+    assert "perf-images" not in text
+
+
 def test_srsbuilder_errata(caplog, tmpdir):
     package, text = build_document(caplog, tmpdir, "doc-ts-srs", [
         "aggregate-test-results", "errata", "link-hub", "dummy-images",

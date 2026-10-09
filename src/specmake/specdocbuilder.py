@@ -377,12 +377,19 @@ def _add_perf_measurement(ctx: _Context,
             ctx.item.cache[test_suite["uid"]].spec_2, test_suite["link"])
         measurements_link = ctx.mapper.format_link(
             "runtime performance measurements", measurement_data["link"])
+        # Only a performance images item sets the base of the image.
+        base = measurement_data.get("boxplot")
+        if base is None:
+            ctx.content.wrap(f"""For the configuration
+{ctx.content.code(config_data['name'])}, the test case {test_case_link} of the
+test suite {test_suite_link} reported {measurements_link}.""")
+            continue
         ctx.content.wrap(f"""For the configuration
 {ctx.content.code(config_data['name'])}, the test case {test_case_link} of the
 test suite {test_suite_link} reported the following {measurements_link}:""")
         ctx.content.add_image(
-            os.path.relpath(f"{measurement_data['boxplot']}.*",
-                            os.path.dirname(ctx.file_path)), "50%")
+            os.path.relpath(f"{base}.*", os.path.dirname(ctx.file_path)),
+            "50%")
 
 
 def _document_perf_runtime(ctx: _Context) -> None:
