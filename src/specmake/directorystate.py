@@ -24,6 +24,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import os
 from typing import Optional
 
 from specitems import Item
@@ -69,3 +70,14 @@ class RepositoryState(DirectoryState):
         status = run_command(["git", "rev-parse", "HEAD"], self.directory,
                              stdout)
         return status == 0 and self["commit"] == stdout[0].strip()
+
+    def discard(self) -> None:
+        super().discard()
+        directory = self.git_directory
+        if directory is None:
+            return
+        status = run_command([
+            "git", "rm", "--cached", "--ignore-unmatch", "--quiet", "--",
+            os.path.relpath(self.directory, directory)
+        ], directory)
+        assert status == 0

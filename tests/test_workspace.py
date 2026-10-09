@@ -282,6 +282,41 @@ def test_workspace_repo_clone_depth(tmpdir):
     assert repo.lazy_verify()
 
 
+def test_workspace_repo_discard(tmpdir):
+    deployment_directory = str(tmpdir)
+    status = run_command(["git", "init"], deployment_directory)
+    assert status == 0
+    workspace = _create_workspace(
+        tmpdir, ["spec-pkg-wk/repo/archive", "spec-pkg-wk/repo/default"])
+    buildspace_config = BuildspaceConfig(
+        spec_directory=os.path.join(tmpdir, "build", "spec"),
+        cache_directory=os.path.join(tmpdir, "build", "cache"),
+        git_directory=deployment_directory)
+    export_to_buildspace(workspace, buildspace_config)
+    stdout = []
+    status = run_command(["git", "ls-files", "--stage", "repo"],
+                         deployment_directory, stdout)
+    assert status == 0
+    assert stdout[0].startswith("160000 ")
+    workspace.director.remove("/repo")
+    export_to_buildspace(workspace, buildspace_config)
+    stdout = []
+    status = run_command(["git", "ls-files", "--stage", "repo"],
+                         deployment_directory, stdout)
+    assert status == 0
+    assert not stdout
+    status = run_command(["git", "status", "--short"], deployment_directory)
+    assert status == 0
+    workspace = _create_workspace(
+        tmpdir, ["spec-pkg-wk/repo/archive", "spec-pkg-wk/repo/default"])
+    export_to_buildspace(workspace, buildspace_config)
+    stdout = []
+    status = run_command(["git", "ls-files", "--stage", "repo"],
+                         deployment_directory, stdout)
+    assert status == 0
+    assert stdout[0].startswith("160000 ")
+
+
 def test_workspace_repo_origin_url(tmpdir):
     buildspace, _ = _create_buildspace(
         tmpdir, ["spec-pkg-wk/repo/archive", "spec-pkg-wk/repo/origin-url"])
