@@ -74,8 +74,8 @@ def test_testanalysis(caplog, tmpdir):
     assert analysis.program_counts == {
         target: {
             "expected-failures": 0,
-            "passed": 4,
-            "unexpected-failures": 11,
+            "passed": 3,
+            "unexpected-failures": 12,
             "unexpected-passes": 0
         }
     }

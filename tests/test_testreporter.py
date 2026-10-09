@@ -253,6 +253,8 @@ spec:/​build/​testsuites/​tmtests/​tmfine01
 
   - The RTEMS Git commit has not the expected value.
 
+  - The test runner reported an error.
+
   - The tools version has not the expected value.
 
 .. _ListOfUnexpectedTestFailuresTargetNameTargetASpecBuildTestsuitesTmtestsTmtimer01:
@@ -2230,8 +2232,8 @@ the tests it runs."""
     assert director["/pkg/deployment/doc-djf-tr"]["test-program-counts"] == {
         "/rtems/target-a": {
             "expected-failures": 0,
-            "passed": 4,
-            "unexpected-failures": 11,
+            "passed": 3,
+            "unexpected-failures": 12,
             "unexpected-passes": 0
         }
     }

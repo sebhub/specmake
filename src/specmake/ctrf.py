@@ -32,6 +32,8 @@ from typing import Any, Iterable, Optional
 
 from specitems import CommonMarkContent
 
+from .testanalysis import get_outcome_errors, is_zero_count
+
 CTRF_REPORT_FORMAT = "CTRF"
 
 # The version of the Common Test Report Format specification this module
@@ -45,6 +47,11 @@ CTRF_SKIPPED = "skipped"
 
 # The value a test log uses for something a test did not report
 _UNREPORTED = "?"
+
+_OUTCOME_MESSAGES = {
+    "no-begin-of-test-message": "no begin of test message",
+    "no-end-of-test-message": "no end of test message"
+}
 
 # The count of test output lines of the trace of a failed test
 _MAX_TRACE_LINES = 40
@@ -138,14 +145,11 @@ def _executable_error(report: _Data) -> str:
     Return an empty string if the executable produced a valid test result, or
     if the test cases of the executable already report every failed test step.
     """
-    error = report.get("error", "")
-    if error:
-        return error
-    info = report.get("info", {})
-    if "line-begin-of-test" not in info:
-        return "no begin of test message"
-    if "line-end-of-test" not in info:
-        return "no end of test message"
+    errors = get_outcome_errors(report)
+    if errors:
+        if errors[0] == "test-runner-error":
+            return report["error"]
+        return _OUTCOME_MESSAGES[errors[0]]
     test_suite = report.get("test-suite", None)
     if test_suite is None:
         return ""
@@ -189,7 +193,7 @@ def _test_case_to_test(report: _Data, test_suite: _Data, test_case: _Data,
     failed_steps = test_case.get("failed-steps-count", _UNREPORTED)
     test: _Data = {
         "name": test_case["name"],
-        "status": CTRF_PASSED if failed_steps == 0 else CTRF_FAILED,
+        "status": CTRF_PASSED if is_zero_count(failed_steps) else CTRF_FAILED,
         "duration": duration,
         "suite": [test_suite["name"]],
         "filePath": os.path.basename(report["executable"]),

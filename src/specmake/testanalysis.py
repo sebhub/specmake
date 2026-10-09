@@ -43,6 +43,8 @@ ERRORS = {
     "The test output contains no begin of test message.",
     "no-end-of-test-message":
     "The test output contains no end of test message.",
+    "test-runner-error":
+    "The test runner reported an error.",
     "unexpected-bsp":
     "The BSP has not the expected name.",
     "unexpected-build":
@@ -281,18 +283,46 @@ def _is_equal(expected: str, reported: Any) -> bool:
     return reported is not None and reported == expected
 
 
-def _is_positive(_expected: str, reported: Any) -> bool:
+def is_positive_count(value: Any) -> bool:
+    """ Tell whether the reported value is a positive count. """
     try:
-        return float(str(reported)) > 0.0
+        return float(str(value)) > 0.0
     except ValueError:
         return False
+
+
+def is_zero_count(value: Any) -> bool:
+    """ Tell whether the reported value is a count of zero. """
+    try:
+        return int(str(value)) == 0
+    except ValueError:
+        return False
+
+
+def get_outcome_errors(report: dict) -> list[str]:
+    """
+    Get the errors of the outcome of a test program.
+
+    The errors are in the order of their weight.  A program without an error
+    produced a complete test output.
+    """
+    errors: list[str] = []
+    if report.get("error", ""):
+        errors.append("test-runner-error")
+    info = report.get("info", {})
+    if "line-begin-of-test" not in info:
+        errors.append("no-begin-of-test-message")
+    if "line-end-of-test" not in info:
+        errors.append("no-end-of-test-message")
+    return errors
+
+
+def _is_positive(_expected: str, reported: Any) -> bool:
+    return is_positive_count(reported)
 
 
 def _is_zero(_expected: str, reported: Any) -> bool:
-    try:
-        return int(str(reported)) == 0
-    except ValueError:
-        return False
+    return is_zero_count(reported)
 
 
 def _is_duration(_expected: str, reported: Any) -> bool:
@@ -380,12 +410,10 @@ class _Analyser:
     def check_test_info(self, report: dict) -> None:
         """ Check the test information of the report. """
         info = report["info"]
+        for error in get_outcome_errors(report):
+            self.add_error(error)
         begin = info.get("line-begin-of-test", None)
-        if begin is None:
-            self.add_error("no-begin-of-test-message")
         end = info.get("line-end-of-test", None)
-        if end is None:
-            self.add_error("no-end-of-test-message")
         checks: list[TestCheck] = []
         self.check_property(checks, info, "version", "rtems-commit")
         for option in ("RTEMS_DEBUG", "RTEMS_MULTIPROCESSING",
