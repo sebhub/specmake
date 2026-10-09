@@ -740,6 +740,17 @@ class TestAggregator(BuildItem):
                 config_data.setdefault("coverage", []).append(coverage_data)
             target_data["configs"].append(config_data)
 
+    def _judge_test_program(self, target_data: dict, uid: str,
+                            report: _Data) -> None:
+        # A test program has no status of its own.  It contributes to the
+        # status of its target.
+        _test_status(
+            target_data, self.item.cache[target_data["uid"]],
+            _judge(
+                get_outcome_errors(report),
+                self._get_verification(target_data["test-error-verifications"],
+                                       uid), get_test_state(report)))
+
     def _get_verification(self, verifications: dict[str, str],
                           uid: str) -> Item | None:
         verification_uid = verifications.get(uid, None)
@@ -806,6 +817,7 @@ class TestAggregator(BuildItem):
                     report["report-file"] = self._make_report_file(
                         config_data, uid)
                     config_data["test-programs"][uid] = report
+                    self._judge_test_program(target_data, uid, report)
             else:
                 self._process_test_suite(spec, report, config_data, test_suite,
                                          test_suite_item)

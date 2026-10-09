@@ -25,10 +25,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from specitems import EmptyItem
 
-from specmake.testaggregator import _judge, _update_measurement_status
+from specmake.testaggregator import (TestAggregator, _judge,
+                                     _update_measurement_status)
 from specmake.testanalysis import (ConfigRef, Expectation, LimitCheck,
                                    TestAnalysis, TestCheck,
                                    check_runtime_limits, expect,
@@ -37,6 +39,7 @@ from specmake.testanalysis import (ConfigRef, Expectation, LimitCheck,
 
 from .util import create_package
 
+TestAggregator.__test__ = False
 TestAnalysis.__test__ = False
 TestCheck.__test__ = False
 
@@ -133,6 +136,26 @@ def test_update_measurement_status():
     assert measurement_data["status"] == "X"
     _update_measurement_status(measurement_data, env_data, _LIMITS, None, "")
     assert measurement_data["status"] == "F"
+
+
+def test_judge_test_program():
+    target = EmptyItem()
+    aggregator = SimpleNamespace(
+        item=SimpleNamespace(cache={"/t": target}),
+        _get_verification=lambda verifications, uid: None)
+    target_data = {"uid": "/t", "link": "l", "test-error-verifications": {}}
+    complete = {"info": {"line-begin-of-test": 1, "line-end-of-test": 2}}
+    # A target with only test programs gets a validation status.
+    TestAggregator._judge_test_program(aggregator, target_data, "/p", complete)
+    assert target.view["no-unexpected-test-failures"]
+    TestAggregator._judge_test_program(aggregator, target_data, "/p",
+                                       {"info": {}})
+    assert not target.view["no-unexpected-test-failures"]
+    TestAggregator._judge_test_program(aggregator, target_data, "/p",
+                                       {"info": {
+                                           "state": "EXPECTED_FAIL"
+                                       }})
+    assert not target.view["no-unexpected-test-failures"]
 
 
 def test_testanalysis(caplog, tmpdir):
