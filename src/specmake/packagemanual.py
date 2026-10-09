@@ -43,6 +43,7 @@ from .pkgitems import PackageBuildDirector
 from .packagechanges import PackageChanges
 from .testaggregator import (CoverageGap, CoverageScope, NotValidatedItem,
                              RetriedProgram, TestAggregator)
+from .testanalysis import NO_TEST_RESULTS, TestAnalysis
 from .testrunner import TestLog
 from .util import variant_order
 
@@ -477,19 +478,17 @@ def _count(count: int, singular: str, plural: str) -> str:
 
 
 def _add_status(content: TextContent, verdicts: list[_Verdicts],
-                scopes: list[CoverageScope],
                 not_validated: list[NotValidatedItem],
                 root_inspected: bool) -> None:
     # The test report lists the coverage issues of a target under the UID of
-    # the target.
+    # the target.  A coverage scope which misses its limits and a stale gap
+    # item are coverage issues of their target.
     items = 0
     targets = 0
     for verdicts_2 in verdicts:
         for target, uids in verdicts_2.failures.items():
             items += sum(1 for uid in uids if uid != target)
             targets += int(target in uids)
-    nok = sum(1 for scope in scopes if scope.error)
-    stale = len(set(gap.uid for scope in scopes for gap in scope.stale))
     causes: list[str] = []
     if items:
         causes.append(
@@ -499,12 +498,6 @@ def _add_status(content: TextContent, verdicts: list[_Verdicts],
         causes.append(
             _count(targets, "target with coverage issues",
                    "targets with coverage issues"))
-    if nok:
-        causes.append(
-            _count(nok, "coverage scope misses its limits",
-                   "coverage scopes miss their limits"))
-    if stale:
-        causes.append(_count(stale, "stale gap item", "stale gap items"))
     if not_validated:
         causes.append(
             _count(len(not_validated), "item is not validated",
@@ -615,6 +608,27 @@ class _Aggregations(NamedTuple):
     retried: list[RetriedProgram]
 
 
+def _make_verdicts(ident: str, analysis: TestAnalysis,
+                   not_validated: set[str]) -> _Verdicts:
+    # A not validated item states a missing test result, so the failures
+    # leave it out.  An item has one entry for each target.
+    failures: dict[str, list[str]] = {}
+    reasons: dict[str, dict[str, list[str]]] = {}
+    all_reasons = analysis.get_unexpected_failure_reasons()
+    for target, uids in analysis.get_unexpected_failures().items():
+        by_uid: dict[str, list[str]] = {}
+        for uid in uids:
+            texts = all_reasons[target][uid]
+            if uid in not_validated:
+                texts = [text for text in texts if text != NO_TEST_RESULTS]
+            if texts:
+                by_uid[uid] = texts
+        if by_uid:
+            failures[target] = list(by_uid)
+            reasons[target] = by_uid
+    return _Verdicts(ident, failures, reasons, analysis.program_counts)
+
+
 def _gather_aggregations(
         test_aggregators: list[TestAggregator]) -> _Aggregations:
     # Each component validates the specification in its own item view, so
@@ -625,14 +639,14 @@ def _gather_aggregations(
     retried: list[RetriedProgram] = []
     for test_aggregator in test_aggregators:
         with test_aggregator.component.scope():
-            analysis = test_aggregator.get_analysis()
+            items = test_aggregator.get_not_validated_items()
+            not_validated.update(items)
             verdicts.append(
-                _Verdicts(test_aggregator.substitute("${.:/component/ident}"),
-                          analysis.get_unexpected_failures(),
-                          analysis.get_unexpected_failure_reasons(),
-                          analysis.program_counts))
+                _make_verdicts(
+                    test_aggregator.substitute("${.:/component/ident}"),
+                    test_aggregator.get_analysis(),
+                    set(item.uid for item in items)))
             scopes.extend(test_aggregator.get_coverage_scopes())
-            not_validated.update(test_aggregator.get_not_validated_items())
             retried.extend(test_aggregator.get_retried_programs())
     return _Aggregations(verdicts, scopes, sorted(not_validated), retried)
 
@@ -664,7 +678,7 @@ class PackageSummary(DirectoryState):
         root_inspected = bool(test_aggregators)
         content = CommonMarkContent(0, context=self.mapper.context)
         with content.section(f"Package summary - {self.component['ident']}"):
-            _add_status(content, verdicts, scopes, items, root_inspected)
+            _add_status(content, verdicts, items, root_inspected)
             _add_warnings(content, retried)
             _add_test_overview(content, verdicts)
             _add_unexpected_failures(content, verdicts)
