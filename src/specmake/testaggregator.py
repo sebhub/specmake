@@ -45,7 +45,8 @@ from .pkgitems import BuildItem, BuildItemMapper, PackageBuildDirector
 from .rtems import RTEMSItemCache
 from .sphinxbuilder import spacify
 from .testanalysis import (IssueSubject, TestAnalysis, analyse,
-                           check_runtime_limits)
+                           check_runtime_limits, expect, get_count_errors,
+                           get_outcome_errors, get_test_state)
 
 _Configs = dict[BuildItem, dict[str, list[DirectoryState]]]
 _Results = dict[BuildItem, _Configs]
@@ -74,14 +75,17 @@ def _set_limits_and_target_hash(target_data: dict, target: Item) -> None:
     target_data["target-hash"] = to_collection(target["target-hash"])
 
 
-def _test_status(target_data: dict, target: Item, info: dict,
-                 verifications: dict[str, str]) -> str:
+def _judge(errors: list[str], verification: Item | None, state: str) -> str:
+    if not errors:
+        return "P"
+    if all(expect(error, verification, state).expected for error in errors):
+        return "X"
+    return "F"
+
+
+def _test_status(target_data: dict, target: Item, status: str) -> str:
     link = target_data["link"]
-    if info["failed-steps-count"] == 0:
-        status = "P"
-    elif info.get("uid", None) in verifications:
-        status = "X"
-    else:
+    if status == "F":
         target.view["no-unexpected-test-failures"] = False
         target.view["validation-status"] = (
             "at least one unexpected test failure", link)
@@ -107,9 +111,15 @@ def get_test_result_status(item: Item,
 
 
 def _update_measurement_status(measurement_data: _Data, env_data: _Data,
-                               limits: _Data) -> None:
-    if not all(check.ok for check in check_runtime_limits(env_data, limits)):
-        measurement_data["status"] = "F"
+                               limits: _Data, verification: Item | None,
+                               state: str) -> None:
+    errors = [
+        f"unexpected-runtime-{check.kind}"
+        for check in check_runtime_limits(env_data, limits) if not check.ok
+    ]
+    status = _judge(errors, verification, state)
+    if status == "F" or (status == "X" and measurement_data["status"] == "P"):
+        measurement_data["status"] = status
 
 
 def _gather_test_error_verifications(item: Item,
@@ -730,6 +740,13 @@ class TestAggregator(BuildItem):
                 config_data.setdefault("coverage", []).append(coverage_data)
             target_data["configs"].append(config_data)
 
+    def _get_verification(self, verifications: dict[str, str],
+                          uid: str) -> Item | None:
+        verification_uid = verifications.get(uid, None)
+        if verification_uid is None:
+            return None
+        return self.item.cache[verification_uid]
+
     def _make_label(self, data: dict, name: str) -> str:
         return f"{data.get('label', '')}{make_label(name)}"
 
@@ -796,7 +813,9 @@ class TestAggregator(BuildItem):
     def _process_runtime_measurements(self, spec: RTEMSItemCache,
                                       runtime_measurements: _Data,
                                       config_data: _Data, test_suite: _Data,
-                                      test_case: _Data) -> None:
+                                      test_case: _Data,
+                                      verification: Item | None,
+                                      state: str) -> None:
         # pylint: disable=too-many-arguments
         # pylint: disable=too-many-positional-arguments
         # pylint: disable=too-many-locals
@@ -834,7 +853,8 @@ class TestAggregator(BuildItem):
             env_data["label"] = label
             _add_link(env_data, test_suite, label)
             _update_measurement_status(measurement_data, env_data,
-                                       limits_by_req[req.uid][env_name])
+                                       limits_by_req[req.uid][env_name],
+                                       verification, state)
             self.runtime_measurements.append(measurement_data)
 
     def _process_test_suite(self, spec: RTEMSItemCache, report: Any,
@@ -849,6 +869,9 @@ class TestAggregator(BuildItem):
         target_uid = target_data["uid"]
         target_item = self.item.cache[target_uid]
         verifications = target_data["test-error-verifications"]
+        state = get_test_state(report)
+        suite_verification = self._get_verification(verifications,
+                                                    test_suite_item.uid)
         test_suite["uid"] = test_suite_item.uid
         runtime_measurements: _Data = {}
         test_cases: dict = {}
@@ -866,7 +889,11 @@ class TestAggregator(BuildItem):
             "report":
             report,
             "status":
-            _test_status(target_data, target_item, test_suite, verifications),
+            _test_status(
+                target_data, target_item,
+                _judge(
+                    get_outcome_errors(report) + get_count_errors(test_suite),
+                    suite_verification, state)),
             "runtime-measurements":
             runtime_measurements,
             "test-cases":
@@ -903,9 +930,14 @@ class TestAggregator(BuildItem):
                     target_uid, []).append(test_case)
                 self._process_runtime_measurements(spec, runtime_measurements,
                                                    config_data, test_suite,
-                                                   test_case)
-            test_case["status"] = _test_status(target_data, target_item,
-                                               test_case, verifications)
+                                                   test_case,
+                                                   suite_verification, state)
+            test_case["status"] = _test_status(
+                target_data, target_item,
+                _judge(
+                    get_count_errors(test_case),
+                    self._get_verification(verifications,
+                                           test_case.get("uid", "")), state))
             for remark in test_case["remarks"]:
                 try:
                     remark_item = spec.name_to_item[remark["remark"]]

@@ -2274,6 +2274,7 @@ def test_testanalysis_program_scope():
     analyser.analysis = TestAnalysis()
     analyser.target_uid = "/t"
     analyser.verifications = {"/xfail": "/v"}
+    analyser.state = ""
     failures = analyser.analysis
     with analyser.program_scope(["/pass"]):
         pass
@@ -2284,12 +2285,15 @@ def test_testanalysis_program_scope():
     with analyser.program_scope(["/fail"]):
         _add_failure(failures.expected_failures, "/t", "/both")
         _add_failure(failures.unexpected_failures, "/t", "/fail")
+    analyser.state = "EXPECTED_FAIL"
+    with analyser.program_scope(["/pass"]):
+        pass
     assert failures.program_counts == {
         "/t": {
             "expected-failures": 1,
             "passed": 1,
             "unexpected-failures": 1,
-            "unexpected-passes": 1
+            "unexpected-passes": 2
         }
     }
 

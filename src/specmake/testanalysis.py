@@ -32,6 +32,8 @@ import re
 from typing import (Any, Callable, Iterable, Iterator, NamedTuple,
                     TYPE_CHECKING)
 
+from specitems import Item
+
 if TYPE_CHECKING:
     from .testaggregator import TestAggregator  # pragma: no cover
 
@@ -88,6 +90,13 @@ ERRORS = {
     "unexpected-version":
     "The RTEMS Git commit has not the expected value.",
 }
+
+NO_TEST_RESULTS = "There are no test results available for this target."
+
+# A test program in one of these states is not expected to pass.  The test
+# program reports its state in the test output.
+TOLERATED_STATES = frozenset(
+    ("EXPECTED_FAIL", "USER_INPUT", "INDETERMINATE", "BENCHMARK"))
 
 COVERAGE_ISSUES = "For this target, the following code coverage issues " \
     "were present."
@@ -299,6 +308,49 @@ def is_zero_count(value: Any) -> bool:
         return False
 
 
+def get_count_errors(data: dict) -> list[str]:
+    """ Get the errors of the step counts of a test suite or test case. """
+    errors: list[str] = []
+    if not is_positive_count(data.get("step-count", "?")):
+        errors.append("unexpected-step-count")
+    if not is_zero_count(data.get("failed-steps-count", "?")):
+        errors.append("unexpected-failed-steps-count")
+    return errors
+
+
+def get_test_state(report: dict) -> str:
+    """ Get the state which the test program reports. """
+    return report.get("info", {}).get("state", "").strip()
+
+
+class Expectation(NamedTuple):
+    """
+    Tells whether a test error is expected.
+
+    The text of an expected error states why it is expected.
+    """
+    expected: bool
+    text: str
+
+
+def expect(error: str, verification: Item | None, state: str) -> Expectation:
+    """
+    Tell whether the test error is expected.
+
+    A verification of the item decides through its acceptable test errors.
+    Without a verification, a tolerated state of the test program makes the
+    error expected.
+    """
+    if verification is not None:
+        if error in verification["acceptable-test-errors"]:
+            return Expectation(True, verification["text"])
+        return Expectation(False, "")
+    if state in TOLERATED_STATES:
+        return Expectation(True,
+                           f"The test program reports the {state} state.")
+    return Expectation(False, "")
+
+
 def get_outcome_errors(report: dict) -> list[str]:
     """
     Get the errors of the outcome of a test program.
@@ -356,19 +408,25 @@ class _Analyser:
         self.config_data: dict[str, Any] = {}
         self.item_uid = ""
         self.anchor = ""
+        self.state = ""
+
+    def get_verification(self, uid: str) -> Item | None:
+        """ Get the verification of the item with the UID. """
+        verification_uid = self.verifications.get(uid, None)
+        if verification_uid is None:
+            return None
+        return self.cache[verification_uid]
 
     def add_error(self, error: str) -> None:
         """ Add the test error to the failures of the current item. """
-        failures = self.analysis.unexpected_failures
-        text = ""
-        uid = self.verifications.get(self.item_uid, None)
-        if uid is not None:
-            verification = self.cache[uid]
-            if error in verification["acceptable-test-errors"]:
-                failures = self.analysis.expected_failures
-                text = verification["text"]
+        expectation = expect(error, self.get_verification(self.item_uid),
+                             self.state)
+        if expectation.expected:
+            failures = self.analysis.expected_failures
+        else:
+            failures = self.analysis.unexpected_failures
         failures.setdefault(self.target_uid, {}).setdefault(
-            (self.item_uid, text), {}).setdefault(
+            (self.item_uid, expectation.text), {}).setdefault(
                 ConfigRef(self.config_data["config-key"], self.anchor),
                 set()).add(ERRORS[error])
 
@@ -504,7 +562,8 @@ class _Analyser:
             verdict = "unexpected-failures"
         elif self._count_failures(analysis.expected_failures) > expected:
             verdict = "expected-failures"
-        elif any(uid in self.verifications for uid in uids):
+        elif any(uid in self.verifications
+                 for uid in uids) or self.state == "EXPECTED_FAIL":
             verdict = "unexpected-passes"
         else:
             verdict = "passed"
@@ -516,6 +575,7 @@ class _Analyser:
         """ Analyse the test suites of the configuration. """
         for suite_uid, suite_data in sorted(
                 self.config_data["test-suites"].items()):
+            self.state = get_test_state(suite_data["report"])
             with self.program_scope([suite_uid, *suite_data["test-cases"]]):
                 self.item_uid = suite_uid
                 self.anchor = suite_data["label"]
@@ -527,10 +587,13 @@ class _Analyser:
     def analyse_test_programs(self) -> None:
         """ Analyse the test programs and the other programs. """
         for uid, report in sorted(self.config_data["test-programs"].items()):
+            self.state = get_test_state(report)
             with self.program_scope([uid]):
                 self.item_uid = uid
                 self.anchor = os.path.basename(report["report-file"])
                 self.check_test_info(report)
+        # The package judges no program without a specification item.
+        self.state = ""
         for _ in self.config_data["other-programs"]:
             with self.program_scope([]):
                 pass
@@ -542,14 +605,14 @@ class _Analyser:
         for item in self.aggregator.spec.related_validations_by_test:
             if self.target_uid in item.view.get("test-results", {}):
                 continue
-            text = "There are no test results available for this target."
-            verification_uid = self.verifications.get(item.uid, None)
-            failures = self.analysis.unexpected_failures
-            if verification_uid is not None:
-                verification = self.cache[verification_uid]
-                if "no-test-results" in verification["acceptable-test-errors"]:
-                    failures = self.analysis.expected_failures
-                    text = verification["text"]
+            expectation = expect("no-test-results",
+                                 self.get_verification(item.uid), "")
+            if expectation.expected:
+                failures = self.analysis.expected_failures
+                text = expectation.text
+            else:
+                failures = self.analysis.unexpected_failures
+                text = NO_TEST_RESULTS
             failures.setdefault(self.target_uid, {}).setdefault(
                 (item.uid, text), {})
 

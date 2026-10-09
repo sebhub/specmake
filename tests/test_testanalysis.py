@@ -26,8 +26,14 @@
 
 from pathlib import Path
 
-from specmake.testanalysis import (ConfigRef, LimitCheck, TestAnalysis,
-                                   TestCheck, check_runtime_limits)
+from specitems import EmptyItem
+
+from specmake.testaggregator import _judge, _update_measurement_status
+from specmake.testanalysis import (ConfigRef, Expectation, LimitCheck,
+                                   TestAnalysis, TestCheck,
+                                   check_runtime_limits, expect,
+                                   get_count_errors, get_outcome_errors,
+                                   get_test_state)
 
 from .util import create_package
 
@@ -60,6 +66,73 @@ def test_check_runtime_limits():
             "max": 4.5
         }, _LIMITS)
     ] == [False, False, False]
+
+
+def _verification(errors):
+    item = EmptyItem()
+    item["acceptable-test-errors"] = errors
+    item["text"] = "Verified."
+    return item
+
+
+def test_expect():
+    accepts = _verification(["unexpected-bsp"])
+    # A verification decides, whatever the state of the test program.
+    assert expect("unexpected-bsp", accepts,
+                  "EXPECTED_PASS") == Expectation(True, "Verified.")
+    assert expect("unexpected-step-count", accepts,
+                  "EXPECTED_FAIL") == Expectation(False, "")
+    # Without a verification, a tolerated state decides.
+    assert expect("unexpected-step-count", None, "EXPECTED_FAIL") == \
+        Expectation(True, "The test program reports the EXPECTED_FAIL state.")
+    assert expect("unexpected-step-count", None,
+                  "EXPECTED_PASS") == Expectation(False, "")
+
+
+def test_outcome_errors():
+    assert get_outcome_errors({
+        "error": "timeout",
+        "info": {}
+    }) == [
+        "test-runner-error", "no-begin-of-test-message",
+        "no-end-of-test-message"
+    ]
+    assert get_outcome_errors(
+        {"info": {
+            "line-begin-of-test": 1,
+            "line-end-of-test": 2
+        }}) == []
+    assert get_count_errors(
+        {}) == ["unexpected-step-count", "unexpected-failed-steps-count"]
+    assert get_count_errors({"step-count": 3, "failed-steps-count": 0}) == []
+    assert get_test_state({"info": {"state": "EXPECTED_FAIL\n"}}) == \
+        "EXPECTED_FAIL"
+    assert get_test_state({}) == ""
+
+
+def test_judge():
+    assert _judge([], None, "") == "P"
+    assert _judge(["unexpected-step-count"], None, "EXPECTED_FAIL") == "X"
+    assert _judge(["unexpected-step-count"], None, "") == "F"
+    assert _judge(["unexpected-bsp", "unexpected-step-count"],
+                  _verification(["unexpected-bsp"]), "EXPECTED_FAIL") == "F"
+
+
+def test_update_measurement_status():
+    env_data = {"min": 0.5, "q2": 2.0, "max": 4.0}
+    measurement_data = {"status": "P"}
+    _update_measurement_status(measurement_data, env_data, _LIMITS,
+                               _verification(["unexpected-runtime-minimum"]),
+                               "")
+    assert measurement_data["status"] == "X"
+    _update_measurement_status(measurement_data, {
+        "min": 1.0,
+        "q2": 2.0,
+        "max": 4.0
+    }, _LIMITS, None, "")
+    assert measurement_data["status"] == "X"
+    _update_measurement_status(measurement_data, env_data, _LIMITS, None, "")
+    assert measurement_data["status"] == "F"
 
 
 def test_testanalysis(caplog, tmpdir):
