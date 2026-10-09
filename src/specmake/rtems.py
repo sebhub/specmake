@@ -33,9 +33,9 @@ from typing import Callable, Iterable
 
 from specitems import EnabledSet, Item, ItemGetValueContext, is_enabled, Link
 from specware import (augment_with_test_case_links, augment_with_test_links,
-                      get_items_by_type_map, get_item_types_by_prefix,
-                      get_items_by_types, get_interface_items,
-                      get_interface_and_requirement_items,
+                      get_inline_enumerators, get_items_by_type_map,
+                      get_item_types_by_prefix, get_items_by_types,
+                      get_interface_items, get_interface_and_requirement_items,
                       get_register_block_hosts, get_register_block_identifier,
                       get_requirement_items, is_validation_by_test,
                       recursive_is_enabled, validate)
@@ -80,7 +80,15 @@ def _name_kind(kind: str, key: str, name_to_item: dict[str, Item],
     _add_unique_name(name_to_item, item, f"{kind}/{item[key]}")
 
 
-_name_enum = functools.partial(_name_kind, "enum", "name")
+def _name_enum(name_to_item: dict[str, Item], item: Item) -> None:
+    if not item.enabled:
+        return
+    _name_kind("enum", "name", name_to_item, item)
+    for _, enumerator in get_inline_enumerators(item):
+        _add_unique_name(name_to_item, item,
+                         f"enumerator/{enumerator['name']}")
+
+
 _name_enumerator = functools.partial(_name_kind, "enumerator", "name")
 _name_function = functools.partial(_name_kind, "function", "name")
 _name_group = functools.partial(_name_kind, "group", "identifier")

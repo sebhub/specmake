@@ -767,10 +767,13 @@ Interface
         typedef enum {
           ENUMERATOR,
           ENUMERATOR_2 = 2,
+          ENUMERATOR_3 = ENUMERATOR_2,
+          ENUMERATOR_5,
         } the_enum;
 
 Description
-    Description.
+    Description of `ENUMERATOR_3
+    </pkg/doc-ts-icd/html/requirements-and-design.html#specrtemsifenumreal>`__.
 
 Software design
     This enumeration is realised by the software design element `the_enum </pkg/doc-ddf-sdd/html/group__Blub.html#ga582a1afc79f3b607104a52d7aa268624>`__.

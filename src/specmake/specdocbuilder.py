@@ -38,7 +38,7 @@ from specitems import (COL_SPAN, EnabledSet, GenericContent, Item,
 from specware import (CodeMapper, TransitionMap, PreCondsOfPostCond,
                       align_declarations, document_directive, document_option,
                       forward_declaration, get_interface_container,
-                      get_register_block_layout)
+                      get_inline_enumerators, get_register_block_layout)
 
 from .docbuilder import DocumentBuilder
 from .pkgitems import PackageBuildDirector
@@ -731,6 +731,17 @@ def _enumerator(item: Item, mapper: ItemMapper,
     return name
 
 
+def _inline_enumerator(item: Item, index: int, enumerator: dict[str, Any],
+                       mapper: ItemMapper) -> str:
+    name = enumerator["name"]
+    value = enumerator.get("value", None)
+    if value is None:
+        return name
+    value = mapper.substitute(str(value), item,
+                              f"enumerators[{index}]/value").strip()
+    return f"{name} = {_SPACE.sub(' ', value)}"
+
+
 def _document_enumeration(ctx: _Context) -> None:
     _add_brief(ctx)
     _document_unspecified(ctx)
@@ -738,6 +749,9 @@ def _document_enumeration(ctx: _Context) -> None:
         f"  {_enumerator(name, ctx.code_mapper, ctx.spec.enabled_set)},"
         for name in ctx.item.parents("interface-enumerator")
     ]
+    for index, enumerator in get_inline_enumerators(ctx.item):
+        line = _inline_enumerator(ctx.item, index, enumerator, ctx.code_mapper)
+        enumerators.append(f"  {line},")
     _add_type_definition(ctx.content, ctx.item["name"],
                          ctx.item["definition-kind"], "enum", enumerators)
     _add_text(ctx, "description", "Description")

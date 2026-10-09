@@ -993,6 +993,8 @@ class SpecMapper(BuildItemMapper):
                 "interface/variable:/name",
                 "requirement/non-functional/design-group:/name"):
             self.add_get_value(type_path_key, self._get_value_link)
+        self.add_get_value("interface/enum:/enumerators/name",
+                           self._get_value_enumerator_link)
         for type_name in self.item.cache.items_by_type.keys():
             self.add_get_value(f"{type_name}:/spec", self._get_value_link)
         for kind in ("define", "enum", "enumerator", "file", "function",
@@ -1014,7 +1016,16 @@ class SpecMapper(BuildItemMapper):
             name = item.spec_2
         return self.format_reference(name, spec_label(item))
 
-    def get_link(self, item: Item, document_key: Optional[str] = None) -> str:
+    def get_link(self,
+                 item: Item,
+                 document_key: Optional[str] = None,
+                 name: Optional[str] = None) -> str:
+        """
+        Return a link to the item.
+
+        The name is the text of the link.  Without a name, the name of the item
+        is the text.
+        """
         try:
             default_key = item.view["default-document-key"]
         except KeyError:
@@ -1031,21 +1042,24 @@ class SpecMapper(BuildItemMapper):
                     else:
                         component_key = document_key
                     assert component_key != self._whoami
-                    name = item.view["name"]
+                    link_name = item.view["name"] if name is None else name
                     path = item.view["document-paths"].get(
                         component_key, item.view["default-document-path"])
                     component_links.append(
                         self.format_link(component.item.spec_2, path))
             if not component_links:
-                name = _ITEM_SPECIFICS.get(item.type, _ITEM_DEFAULT)[2](item)
+                if name is None:
+                    name = _ITEM_SPECIFICS.get(item.type,
+                                               _ITEM_DEFAULT)[2](item)
                 return self.format_code(name)
             if len(component_links) == 1:
-                return self.format_link(name, path)
-            return (f"{self.format_code(name)} "
+                return self.format_link(link_name, path)
+            return (f"{self.format_code(link_name)} "
                     f"(for {list_terms(component_links)})")
         if document_key is None:
             document_key = default_key
-        name = item.view["name"]
+        if name is None:
+            name = item.view["name"]
         if document_key == self._whoami:
             return self.format_reference(name, spec_label(item))
         path = item.view["document-paths"].get(
@@ -1054,6 +1068,9 @@ class SpecMapper(BuildItemMapper):
 
     def _get_value_link(self, ctx: ItemGetValueContext) -> str:
         return self.get_link(ctx.item)
+
+    def _get_value_enumerator_link(self, ctx: ItemGetValueContext) -> str:
+        return self.get_link(ctx.item, name=ctx.value[ctx.key])
 
     def _get_value_sdd_link(self, kind: str, ctx: ItemGetValueContext) -> str:
         link_hub_uid = self.build_item.component.item.child("link-hub").uid

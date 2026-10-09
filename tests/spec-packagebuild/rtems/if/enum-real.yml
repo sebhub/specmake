@@ -5,8 +5,14 @@ copyrights:
 - Copyright (C) 2025 embedded brains GmbH & Co. KG
 definition-kind: typedef-only
 description: |
-  Description.
+  Description of ${.:/enumerators[0]/name}.
 enabled-by: true
+enumerators:
+- name: ENUMERATOR_3
+  value: ${enumerator-2:/name}
+- enabled-by: false
+  name: ENUMERATOR_4
+- name: ENUMERATOR_5
 index-entries: []
 interface-type: enum
 links:
