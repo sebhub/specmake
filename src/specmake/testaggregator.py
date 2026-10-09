@@ -210,10 +210,12 @@ class CoverageScope(NamedTuple):
     stale: list[CoverageGap]
 
 
-class NotValidatedRequirement(NamedTuple):
-    """ Represents a functional requirement which is not validated. """
+class NotValidatedItem(NamedTuple):
+    """ Represents a related item which is not validated. """
     component: str
+    order: tuple[int, ...]
     uid: str
+    type: str
 
 
 class RetriedProgram(NamedTuple):
@@ -964,17 +966,18 @@ class TestAggregator(BuildItem):
                                       summary.stale))
         return scopes
 
-    def get_not_validated_requirements(self) -> list[NotValidatedRequirement]:
+    def get_not_validated_items(self) -> list[NotValidatedItem]:
         """
-        Get the related pre-qualified functional requirements without
-        validation.
+        Get the related items without validation in the order of the tree.
+
+        The list is empty if the root of the specification is validated.
         """
-        return [
-            NotValidatedRequirement(self.component["ident"], item.uid)
-            for item in sorted(self.spec.get_related_requirements())
-            if item.type.startswith("requirement/functional/")
-            and item.view["pre-qualified"] and not item.view["validated"]
-        ]
+        if self.spec.get_spec_root().view["validated"]:
+            return []
+        return sorted(
+            NotValidatedItem(self.component["ident"], item.view["order"],
+                             item.uid, item.type)
+            for item in self.spec.related_items if not item.view["validated"])
 
     def get_retried_programs(self) -> list[RetriedProgram]:
         """ Get the test programs with failed attempts. """

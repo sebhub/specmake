@@ -63,26 +63,37 @@ def test_add_retried_program():
     assert config_data["retried-programs"] == [("d.exe", 2)]
 
 
-class _Requirement:
+class _Item:
 
-    def __init__(self, uid, type_name, pre_qualified, validated):
+    def __init__(self, uid, type_name, order, validated):
         self.uid = uid
         self.type = type_name
-        self.view = {"pre-qualified": pre_qualified, "validated": validated}
-
-    def __lt__(self, other):
-        return self.uid < other.uid
+        self.view = {"order": order, "validated": validated}
 
 
-def test_get_not_validated_requirements():
-    requirements = [
-        _Requirement("/c", "requirement/functional/function", True, False),
-        _Requirement("/b", "requirement/functional/function", False, False),
-        _Requirement("/a", "requirement/functional/action", True, True),
-        _Requirement("/d", "requirement/non-functional/quality", True, False)
+def _make_aggregator(root, items):
+    return SimpleNamespace(component={"ident": "i"},
+                           spec=SimpleNamespace(get_spec_root=lambda: root,
+                                                related_items=set(items)))
+
+
+def test_get_not_validated_items():
+    root = _Item("/r", "requirement/non-functional/design", (0, ), False)
+    items = [
+        root,
+        _Item("/b", "interface/define", (2, 1, 0), False),
+        _Item("/c", "requirement/functional/action", (1, 0), True),
+        _Item("/a", "interface/group", (2, 0), False)
     ]
-    aggregator = SimpleNamespace(
-        component={"ident": "i"},
-        spec=SimpleNamespace(get_related_requirements=lambda: requirements))
-    assert testaggregator.TestAggregator.get_not_validated_requirements(
-        aggregator) == [testaggregator.NotValidatedRequirement("i", "/c")]
+    assert testaggregator.TestAggregator.get_not_validated_items(
+        _make_aggregator(root, items)) == [
+            testaggregator.NotValidatedItem(
+                "i", (0, ), "/r", "requirement/non-functional/design"),
+            testaggregator.NotValidatedItem("i", (2, 0), "/a",
+                                            "interface/group"),
+            testaggregator.NotValidatedItem("i", (2, 1, 0), "/b",
+                                            "interface/define")
+        ]
+    root.view["validated"] = True
+    assert testaggregator.TestAggregator.get_not_validated_items(
+        _make_aggregator(root, items)) == []

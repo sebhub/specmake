@@ -24,6 +24,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import contextlib
 import logging
 import os
 from pathlib import Path
@@ -35,7 +36,8 @@ from specitems import CommonMarkContent, ItemGetValueContext
 
 import specmake
 from specmake import PackageComponent, TestReporter
-from specmake.testaggregator import CoverageGap, CoverageScope
+from specmake.testaggregator import (CoverageGap, CoverageScope,
+                                     NotValidatedItem)
 
 from .util import create_package
 
@@ -1110,7 +1112,7 @@ Support the package build.
 
 - 1 stale gap item
 
-- 4 functional requirements are not validated
+- 69 items are not validated
 
 <a id="PackageSummarySparcGr712rcSmp4Warnings"></a>
 
@@ -1154,18 +1156,83 @@ The table counts the test programs.
  | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-pass               | The BSP has not the expected name. The tools version has not the expected value. |
  | sparc/gr712rc/smp/4 | /rtems/target-a | /testsuites/test-suite-xfail              |                                                                                  |
 
-<a id="PackageSummarySparcGr712rcSmp4NotValidatedRequirements"></a>
+<a id="PackageSummarySparcGr712rcSmp4NotValidatedItems"></a>
 
-## Not validated requirements
+## Not validated items
 
-The table lists the functional requirements without a successful validation.
+The specification root is not validated.  The table lists the related items without a successful validation in the order of the specification tree.
 
- | Component           | Requirement                   |
- | ------------------- | ----------------------------- |
- | sparc/gr712rc/smp/4 | /rtems/req/action             |
- | sparc/gr712rc/smp/4 | /rtems/req/action-2           |
- | sparc/gr712rc/smp/4 | /rtems/req/define-not-defined |
- | sparc/gr712rc/smp/4 | /rtems/req/func               |
+ | Component           | Item                                      | Type                                                       |
+ | ------------------- | ----------------------------------------- | ---------------------------------------------------------- |
+ | sparc/gr712rc/smp/4 | /req/root                                 | requirement/non-functional/design                          |
+ | sparc/gr712rc/smp/4 | /req/api                                  | requirement/non-functional/interface-requirement           |
+ | sparc/gr712rc/smp/4 | /rtems/if/group                           | interface/group                                            |
+ | sparc/gr712rc/smp/4 | /rtems/if/define-hosted                   | interface/define                                           |
+ | sparc/gr712rc/smp/4 | /rtems/if/define-not-defined              | interface/define                                           |
+ | sparc/gr712rc/smp/4 | /rtems/req/define-not-defined             | requirement/functional/interface-define-not-defined        |
+ | sparc/gr712rc/smp/4 | /rtems/if/define-real                     | interface/define                                           |
+ | sparc/gr712rc/smp/4 | /rtems/if/enum-real                       | interface/enum                                             |
+ | sparc/gr712rc/smp/4 | /rtems/if/enumerator                      | interface/enumerator                                       |
+ | sparc/gr712rc/smp/4 | /rtems/if/enumerator-2                    | interface/enumerator                                       |
+ | sparc/gr712rc/smp/4 | /rtems/if/func                            | interface/function                                         |
+ | sparc/gr712rc/smp/4 | /rtems/req/func                           | requirement/functional/function                            |
+ | sparc/gr712rc/smp/4 | /rtems/if/header                          | interface/header-file                                      |
+ | sparc/gr712rc/smp/4 | /rtems/if/obj                             | interface/variable                                         |
+ | sparc/gr712rc/smp/4 | /rtems/if/reg-block                       | interface/register-block                                   |
+ | sparc/gr712rc/smp/4 | /rtems/if/reg-block-2                     | interface/register-block                                   |
+ | sparc/gr712rc/smp/4 | /rtems/if/reg-block-3                     | interface/register-block                                   |
+ | sparc/gr712rc/smp/4 | /rtems/if/struct                          | interface/struct                                           |
+ | sparc/gr712rc/smp/4 | /rtems/if/struct-both                     | interface/struct                                           |
+ | sparc/gr712rc/smp/4 | /rtems/if/struct-only                     | interface/struct                                           |
+ | sparc/gr712rc/smp/4 | /rtems/if/typedef                         | interface/typedef                                          |
+ | sparc/gr712rc/smp/4 | /rtems/if/union                           | interface/union                                            |
+ | sparc/gr712rc/smp/4 | /rtems/if/union-both                      | interface/union                                            |
+ | sparc/gr712rc/smp/4 | /rtems/if/union-only                      | interface/union                                            |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-group                    | interface/unspecified-group                                |
+ | sparc/gr712rc/smp/4 | /c/if/uint32_t                            | interface/unspecified-typedef                              |
+ | sparc/gr712rc/smp/4 | /rtems/if/define-duplicate                | interface/unspecified-define                               |
+ | sparc/gr712rc/smp/4 | /rtems/if/define-second-duplicate         | interface/unspecified-define                               |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-define                   | interface/unspecified-define                               |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-enum                     | interface/unspecified-enum                                 |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-enumerator               | interface/unspecified-enumerator                           |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-function                 | interface/unspecified-function                             |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-header                   | interface/unspecified-header-file                          |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-macro                    | interface/unspecified-macro                                |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-object                   | interface/unspecified-object                               |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-struct                   | interface/unspecified-struct                               |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-typedef                  | interface/unspecified-typedef                              |
+ | sparc/gr712rc/smp/4 | /rtems/if/unspec-union                    | interface/unspecified-union                                |
+ | sparc/gr712rc/smp/4 | /rtems/req/perf                           | requirement/non-functional/performance-runtime             |
+ | sparc/gr712rc/smp/4 | /rtems/req/perf-no-results                | requirement/non-functional/performance-runtime             |
+ | sparc/gr712rc/smp/4 | /rtems/if/group-2                         | interface/group                                            |
+ | sparc/gr712rc/smp/4 | /rtems/if/forward-decl                    | interface/forward-declaration                              |
+ | sparc/gr712rc/smp/4 | /rtems/if/header-2                        | interface/header-file                                      |
+ | sparc/gr712rc/smp/4 | /rtems/if/group-a                         | interface/group                                            |
+ | sparc/gr712rc/smp/4 | /rtems/if/group-b                         | interface/group                                            |
+ | sparc/gr712rc/smp/4 | /req/glossary                             | glossary/group                                             |
+ | sparc/gr712rc/smp/4 | /req/perf-runtime                         | requirement/non-functional/performance                     |
+ | sparc/gr712rc/smp/4 | /req/perf-runtime-environment             | requirement/non-functional/performance                     |
+ | sparc/gr712rc/smp/4 | /req/perf-runtime-environment-dirty-cache | requirement/non-functional/performance-runtime-environment |
+ | sparc/gr712rc/smp/4 | /req/perf-runtime-environment-full-cache  | requirement/non-functional/performance-runtime-environment |
+ | sparc/gr712rc/smp/4 | /req/perf-runtime-environment-hot-cache   | requirement/non-functional/performance-runtime-environment |
+ | sparc/gr712rc/smp/4 | /req/perf-runtime-environment-load        | requirement/non-functional/performance-runtime-environment |
+ | sparc/gr712rc/smp/4 | /rtems/if/domain                          | interface/domain                                           |
+ | sparc/gr712rc/smp/4 | /rtems/req/group                          | requirement/non-functional/design-group                    |
+ | sparc/gr712rc/smp/4 | /rtems/req/group-no-identifier            | requirement/non-functional/design-group                    |
+ | sparc/gr712rc/smp/4 | /rtems/target-a                           | requirement/non-functional/design-target                   |
+ | sparc/gr712rc/smp/4 | /testsuites/unit                          | requirement/non-functional/design-group                    |
+ | sparc/gr712rc/smp/4 | /testsuites/unit-0                        | test-suite                                                 |
+ | sparc/gr712rc/smp/4 | /rtems/val/test-case-unit                 | test-case                                                  |
+ | sparc/gr712rc/smp/4 | /testsuites/validation                    | requirement/non-functional/design-group                    |
+ | sparc/gr712rc/smp/4 | /testsuites/performance-no-clock-0        | test-suite                                                 |
+ | sparc/gr712rc/smp/4 | /testsuites/test-suite-empty              | test-suite                                                 |
+ | sparc/gr712rc/smp/4 | /testsuites/validation-refinement         | requirement/non-functional/design-group                    |
+ | sparc/gr712rc/smp/4 | /testsuites/test-suite-fail               | test-suite                                                 |
+ | sparc/gr712rc/smp/4 | /rtems/req/action                         | requirement/functional/action                              |
+ | sparc/gr712rc/smp/4 | /rtems/req/action-2                       | requirement/functional/action                              |
+ | sparc/gr712rc/smp/4 | /rtems/val/test-case                      | test-case                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/val/test-case-fail                 | test-case                                                  |
+ | sparc/gr712rc/smp/4 | /rtems/val/test-case-run                  | test-case                                                  |
 
 <a id="PackageSummarySparcGr712rcSmp4Coverage"></a>
 
@@ -1287,6 +1354,73 @@ text
         assert verify_package_sha512 == "3​8​9​0​0​3​a​2​4​5​5​4​8​4​4​4​4​a​1​0​e​9​b​8​9​9​9​d​4​2​a​8​2​a​f​5​a​e​9​a​d​e​b​5​b​6​1​f​d​9​1​7​4​e​d​9​2​d​3​4​e​1​3​4​8​1​1​3​6​1​2​e​3​5​e​4​5​8​6​a​a​a​e​1​3​9​9​9​8​c​c​f​0​f​f​6​0​3​6​6​1​9​9​f​6​b​2​8​0​e​a​a​5​7​9​1​6​d​6​8​4​4​a​9​3​0​9​7"
 
 
+class _Component:
+
+    def __init__(self, ident, active):
+        self.ident = ident
+        self._active = active
+
+    @contextlib.contextmanager
+    def scope(self):
+        self._active.append(self.ident)
+        try:
+            yield
+        finally:
+            self._active.pop()
+
+
+class _Aggregator:
+
+    def __init__(self, ident, active, items):
+        self.component = _Component(ident, active)
+        self._active = active
+        self._items = items
+
+    def _check_scope(self):
+        assert self._active[-1:] == [self.component.ident]
+
+    def get_coverage_scopes(self, _mapper):
+        self._check_scope()
+        return []
+
+    def get_not_validated_items(self):
+        self._check_scope()
+        return self._items
+
+    def get_retried_programs(self):
+        self._check_scope()
+        return []
+
+
+def test_packagesummary_gather_aggregations():
+    active: list[str] = []
+    root = "requirement/non-functional/design"
+    smp = NotValidatedItem("smp", (0, ), "/req/root", root)
+    uni = [
+        NotValidatedItem("uni", (1, 0), "/a", "interface/define"),
+        NotValidatedItem("uni", (0, ), "/req/root", root)
+    ]
+    scopes, items, retried = specmake.packagemanual._gather_aggregations(
+        [_Aggregator("uni", active, uni),
+         _Aggregator("smp", active, [smp])], None)
+    assert scopes == []
+    assert items == [smp, uni[1], uni[0]]
+    assert retried == []
+    assert active == []
+
+
+def test_packagesummary_status_without_aggregation():
+    content = CommonMarkContent(0, context="BSD-2-Clause")
+    reports = [("c", {"unexpected-test-failures": {}})]
+    specmake.packagemanual._add_status(content, reports, [], [], False)
+    assert str(content) == """<a id="Passed"></a>
+
+# ✅ Passed
+
+There are no unexpected test failures.  All coverage scopes meet their limits.  There are no stale gap items.
+"""
+
+
 def test_packagesummary_sections(monkeypatch):
     monkeypatch.setattr(specmake.packagemanual, "_MAX_GAP_ROWS", 1)
     content = CommonMarkContent(0, context="BSD-2-Clause")
@@ -1299,7 +1433,7 @@ def test_packagesummary_sections(monkeypatch):
     rows = [["Component", "Target", "Configuration", "Scope", "File", "Spot"]]
     notes: list[str] = []
     specmake.packagemanual._add_gap_rows(rows, notes, scope, scope.gaps, False)
-    specmake.packagemanual._add_status(content, reports, [scope], [])
+    specmake.packagemanual._add_status(content, reports, [scope], [], True)
     specmake.packagemanual._add_warnings(content, [])
     specmake.packagemanual._add_test_overview(content, reports)
     specmake.packagemanual._add_unexpected_failures(content, reports)
@@ -1312,7 +1446,7 @@ def test_packagesummary_sections(monkeypatch):
 
 # ✅ Passed
 
-There are no unexpected test failures.  All coverage scopes meet their limits.  There are no stale gap items.  All functional requirements are validated.
+There are no unexpected test failures.  All coverage scopes meet their limits.  There are no stale gap items.  The specification root is validated.
 
 <a id="TestOverview"></a>
 

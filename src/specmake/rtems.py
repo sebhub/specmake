@@ -289,9 +289,13 @@ view of the specification items.""")
                 return False
         return validated
 
+    def get_spec_root(self) -> Item:
+        """ Get the root of the specification. """
+        return self.item_cache[self["spec-root-uid"]]
+
     def validate_using_test_results(self) -> None:
         """ Validate the specification using test results. """
-        self.related_items = validate(self.item_cache[self["spec-root-uid"]],
+        self.related_items = validate(self.get_spec_root(),
                                       self._validate_using_test_results)
         _add_errata(self.related_items)
         _check_errata(self.related_items)

@@ -39,11 +39,10 @@ from .archiver import Archiver
 from .directorystate import DirectoryState, RepositoryState
 from .docbuilder import DocumentBuilder
 from .membench import generate, generate_variants_table, MembenchVariant
-from .pkgitems import PackageBuildDirector
+from .pkgitems import BuildItemMapper, PackageBuildDirector
 from .packagechanges import PackageChanges
-from .testaggregator import (CoverageGap, CoverageScope,
-                             NotValidatedRequirement, RetriedProgram,
-                             TestAggregator)
+from .testaggregator import (CoverageGap, CoverageScope, NotValidatedItem,
+                             RetriedProgram, TestAggregator)
 from .testreporter import TestReporter
 from .testrunner import TestLog
 from .util import variant_order
@@ -475,7 +474,8 @@ def _count(count: int, singular: str, plural: str) -> str:
 
 def _add_status(content: TextContent, reports: _Reports,
                 scopes: list[CoverageScope],
-                not_validated: list[NotValidatedRequirement]) -> None:
+                not_validated: list[NotValidatedItem],
+                root_inspected: bool) -> None:
     # The test report lists the coverage issues of a target under the UID of
     # the target.
     items = 0
@@ -503,18 +503,18 @@ def _add_status(content: TextContent, reports: _Reports,
         causes.append(_count(stale, "stale gap item", "stale gap items"))
     if not_validated:
         causes.append(
-            _count(len(not_validated),
-                   "functional requirement is not validated",
-                   "functional requirements are not validated"))
+            _count(len(not_validated), "item is not validated",
+                   "items are not validated"))
     if causes:
         with content.section("❌ Failed"):
             content.add_list(causes)
     else:
         with content.section("✅ Passed"):
+            root = "  The specification root is validated." \
+                if root_inspected else ""
             content.add("There are no unexpected test failures.  All "
                         "coverage scopes meet their limits.  There are no "
-                        "stale gap items.  All functional requirements are "
-                        "validated.")
+                        f"stale gap items.{root}")
 
 
 def _add_warnings(content: TextContent, retried: list[RetriedProgram]) -> None:
@@ -561,14 +561,15 @@ def _add_unexpected_failures(content: TextContent, reports: _Reports) -> None:
 
 
 def _add_not_validated(content: TextContent,
-                       not_validated: list[NotValidatedRequirement]) -> None:
+                       not_validated: list[NotValidatedItem]) -> None:
     if not_validated:
-        with content.section("Not validated requirements"):
-            content.add("The table lists the functional requirements without "
-                        "a successful validation.")
-            content.add_simple_table([["Component", "Requirement"]] +
-                                     [[req.component, req.uid]
-                                      for req in not_validated])
+        with content.section("Not validated items"):
+            content.add("The specification root is not validated.  The table "
+                        "lists the related items without a successful "
+                        "validation in the order of the specification tree.")
+            content.add_simple_table([["Component", "Item", "Type"]] +
+                                     [[item.component, item.uid, item.type]
+                                      for item in not_validated])
 
 
 def _add_retried_programs(content: TextContent,
@@ -602,17 +603,34 @@ def _add_coverage(content: TextContent, scopes: list[CoverageScope]) -> None:
         content.add_simple_table(rows)
 
 
+def _gather_aggregations(
+    test_aggregators: list[TestAggregator], mapper: BuildItemMapper
+) -> tuple[list[CoverageScope], list[NotValidatedItem], list[RetriedProgram]]:
+    # Each component validates the specification in its own item view, so
+    # query each test aggregator in the scope of its component.
+    scopes: list[CoverageScope] = []
+    not_validated: set[NotValidatedItem] = set()
+    retried: list[RetriedProgram] = []
+    for test_aggregator in test_aggregators:
+        with test_aggregator.component.scope():
+            scopes.extend(test_aggregator.get_coverage_scopes(mapper))
+            not_validated.update(test_aggregator.get_not_validated_items())
+            retried.extend(test_aggregator.get_retried_programs())
+    return scopes, sorted(not_validated), retried
+
+
 class PackageSummary(DirectoryState):
     """
     Builds a package summary in CommonMark.
 
-    The summary states the overall status at its beginning.  A pre-qualified
-    functional requirement which is not validated fails the package.  A test
-    program with failed attempts gives a warning.  The summary omits the
-    sections of warnings, failures, requirements, gaps, stale gap items and
-    retried test programs without entries.  The summary lists the
-    repositories of the package, unless the list-repositories attribute is
-    false.
+    The summary states the overall status at its beginning.  A specification
+    root which is not validated fails the package.  The summary then lists
+    every related item which is not validated.  Only a test aggregation
+    inspects the specification root.  A test program with failed attempts
+    gives a warning.  The summary omits the sections of warnings, failures,
+    not validated items, gaps, stale gap items and retried test programs
+    without entries.  The summary lists the repositories of the package,
+    unless the list-repositories attribute is false.
     """
 
     def run(self) -> None:
@@ -624,24 +642,20 @@ class PackageSummary(DirectoryState):
             with report.component.scope():
                 reports.append(
                     (report.substitute("${.:/component/ident}"), report))
-        scopes: list[CoverageScope] = []
-        not_validated: set[NotValidatedRequirement] = set()
-        retried: list[RetriedProgram] = []
+        test_aggregators: list[TestAggregator] = []
         for test_aggregator in self.inputs("test-aggregation"):
             assert isinstance(test_aggregator, TestAggregator)
-            with test_aggregator.component.scope():
-                scopes.extend(test_aggregator.get_coverage_scopes(self.mapper))
-                not_validated.update(
-                    test_aggregator.get_not_validated_requirements())
-                retried.extend(test_aggregator.get_retried_programs())
-        requirements = sorted(not_validated)
+            test_aggregators.append(test_aggregator)
+        scopes, items, retried = _gather_aggregations(test_aggregators,
+                                                      self.mapper)
+        root_inspected = bool(test_aggregators)
         content = CommonMarkContent(0, context=self.mapper.context)
         with content.section(f"Package summary - {self.component['ident']}"):
-            _add_status(content, reports, scopes, requirements)
+            _add_status(content, reports, scopes, items, root_inspected)
             _add_warnings(content, retried)
             _add_test_overview(content, reports)
             _add_unexpected_failures(content, reports)
-            _add_not_validated(content, requirements)
+            _add_not_validated(content, items)
             _add_coverage(content, scopes)
             rows = [[
                 "Component", "Target", "Configuration", "Scope", "File", "Spot"
