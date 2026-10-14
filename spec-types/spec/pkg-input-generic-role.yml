@@ -31,11 +31,19 @@ links:
   uid: pkg-input-role
 - role: spec-refinement
   spec-key: name
+  spec-value: clang-analyzer
+  uid: pkg-input-role
+- role: spec-refinement
+  spec-key: name
   spec-value: component
   uid: pkg-input-role
 - role: spec-refinement
   spec-key: name
   spec-value: config
+  uid: pkg-input-role
+- role: spec-refinement
+  spec-key: name
+  spec-value: cppcheck
   uid: pkg-input-role
 - role: spec-refinement
   spec-key: name
@@ -71,6 +79,10 @@ links:
   uid: pkg-input-role
 - role: spec-refinement
   spec-key: name
+  spec-value: metrixplusplus
+  uid: pkg-input-role
+- role: spec-refinement
+  spec-key: name
   spec-value: other-log
   uid: pkg-input-role
 - role: spec-refinement
@@ -79,11 +91,7 @@ links:
   uid: pkg-input-role
 - role: spec-refinement
   spec-key: name
-  spec-value: rst-files
-  uid: pkg-input-role
-- role: spec-refinement
-  spec-key: name
-  spec-value: rtems
+  spec-value: quality-scanner
   uid: pkg-input-role
 - role: spec-refinement
   spec-key: name
@@ -92,6 +100,10 @@ links:
 - role: spec-refinement
   spec-key: name
   spec-value: repository
+  uid: pkg-input-role
+- role: spec-refinement
+  spec-key: name
+  spec-value: rtems
   uid: pkg-input-role
 - role: spec-refinement
   spec-key: name

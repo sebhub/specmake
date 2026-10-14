@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "artifacts": [
+        {
+          "location": {
+            "index": 0,
+            "uri": "file:///opt/rtems/cpukit/dev/iovprintf.c"
+          }
+        },
+        {
+          "location": {
+            "index": 1,
+            "uri": "file:///opt/rtems/cpukit/score/src/heap.c"
+          }
+        }
+      ],
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 0,
+                  "uri": "file:///opt/rtems/cpukit/dev/iovprintf.c"
+                },
+                "region": {
+                  "endColumn": 2,
+                  "startColumn": 2,
+                  "startLine": 117
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Value stored to 'num' is never read"
+          },
+          "ruleId": "deadcode.DeadStores",
+          "ruleIndex": 0
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 1
+                },
+                "region": {
+                  "startColumn": 3,
+                  "startLine": 42
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Dereference of null pointer"
+          },
+          "ruleId": "core.NullDereference"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "clang",
+          "rules": []
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

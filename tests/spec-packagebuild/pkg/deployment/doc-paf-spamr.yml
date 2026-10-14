@@ -1,0 +1,101 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+directory: ${.:/component/deployment-directory}/doc-paf-spamr
+directory-state-type: sphinx
+document-base-path: /
+document-components:
+- action: copy-and-substitute
+  add-to-index: false
+  file: source/index.rst
+document-contributors: []
+document-copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+document-html-footer: footer
+document-html-help-base-name: SPAMR
+document-key: blub
+document-latex-footer-right: footer right
+document-latex-geometry: geometry
+document-latex-header-left: header left
+document-latex-sphinxsetup: sphinxsetup
+document-latex-theme: manual
+document-accepted-licenses: []
+document-license: CC-BY-SA-4.0
+document-releases: []
+document-title: SPAMR
+document-toctree-maxdepth: 4
+document-type: paf-spamr
+enabled-by: paf-spamr
+files: []
+hash: null
+license-info: []
+links:
+- role: quality-model
+  uid: /defs/quality-model
+- hash: null
+  name: component
+  role: input
+  uid: ../component
+- hash: null
+  name: spec
+  role: input
+  uid: ../steps/rtems-item-cache
+- hash: null
+  name: test-aggregation
+  role: input
+  uid: ../steps/aggregate-test-results
+- hash: null
+  name: package-changes
+  role: input
+  uid: ../spamr/package-changes
+- hash: null
+  name: rtems
+  role: input
+  uid: ../spamr/rtems-qual-only
+- hash: null
+  name: rtems
+  role: input
+  uid: ../spamr/rtems
+- hash: null
+  name: clang-analyzer
+  role: input
+  uid: ../spamr/clang-analyzer
+- hash: null
+  name: cppcheck
+  role: input
+  uid: ../spamr/cppcheck
+- hash: null
+  name: metrixplusplus
+  role: input
+  uid: ../spamr/metrixplusplus
+- hash: null
+  name: quality-scanner
+  role: input
+  uid: ../spamr/quality-scanner
+- hash: null
+  name: source
+  role: input
+  uid: ../source/doc-paf-spamr
+- name: build
+  role: output
+  uid: ../build/doc-paf-spamr
+metric-verdicts:
+  documentation-suitability:
+    result: OK
+    value: Y or NA only
+  requirement-clarity:
+    result: OK
+    value: '0.08'
+  safety-activities-adequacy:
+    result: OK
+    value: Y or NA only
+  user-documentation-clarity:
+    result: NOK
+    value: '0.02'
+  user-manual-suitability:
+    result: OK
+    value: Y or NA only
+output-html: null
+output-pdf: null
+pkg-type: directory-state
+type: pkg

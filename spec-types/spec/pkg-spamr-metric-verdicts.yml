@@ -1,0 +1,44 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      documentation-suitability:
+        description: |
+          It shall be the verdict for the metric Documentation suitability.
+        spec-type: pkg-spamr-metric-verdict
+      milestone-tracking:
+        description: |
+          It shall be the verdict for the metric Milestone tracking.
+        spec-type: pkg-spamr-metric-verdict
+      requirement-clarity:
+        description: |
+          It shall be the verdict for the metric Requirement clarity.
+        spec-type: pkg-spamr-metric-verdict
+      safety-activities-adequacy:
+        description: |
+          It shall be the verdict for the metric Safety activities adequacy.
+        spec-type: pkg-spamr-metric-verdict
+      user-documentation-clarity:
+        description: |
+          It shall be the verdict for the metric User documentation clarity.
+        spec-type: pkg-spamr-metric-verdict
+      user-manual-suitability:
+        description: |
+          It shall be the verdict for the metric User manual suitability.
+        spec-type: pkg-spamr-metric-verdict
+    description: |
+      This set of attributes specifies the verdicts of the reviewer for the
+      metrics which a review evaluates.  A metric with a threshold in the
+      quality model shall have a verdict.
+    mandatory-attributes: none
+spec-name: SPAMR Metric Verdicts
+spec-type: pkg-spamr-metric-verdicts
+type: spec

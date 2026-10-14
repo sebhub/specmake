@@ -1,0 +1,27 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      result:
+        description: |
+          It shall be the result of the metric.
+        spec-type: pkg-spamr-metric-result
+      value:
+        description: |
+          It shall be the measured value of the metric.
+        spec-type: str
+    description: |
+      This set of attributes specifies the verdict of the reviewer for a
+      metric.
+    mandatory-attributes: all
+spec-name: SPAMR Metric Verdict
+spec-type: pkg-spamr-metric-verdict
+type: spec

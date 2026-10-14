@@ -53,7 +53,7 @@ from .runtests import *  # noqa: F401, F403
 from .sddlinker import *  # noqa: F401, F403
 from .sourcecompare import *  # noqa: F401, F403
 from .sourcetospec import *  # noqa: F401, F403
-from .spamrmanager import *  # noqa: F401, F403
+from .spamrbuilder import *  # noqa: F401, F403
 from .speccompare import *  # noqa: F401, F403
 from .sphinxbuilder import *  # noqa: F401, F403
 from .sreldbuilder import *  # noqa: F401, F403

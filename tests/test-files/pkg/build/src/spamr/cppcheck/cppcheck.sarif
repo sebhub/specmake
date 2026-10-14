@@ -1,0 +1,149 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/opt/rtems-qual-only/cpukit/a.c"
+                },
+                "region": {
+                  "endColumn": 3,
+                  "endLine": 3,
+                  "startColumn": 3,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The scope of the variable 'x' can be reduced."
+          },
+          "ruleId": "variableScope"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/elsewhere/c.c"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 7,
+                  "startColumn": 1,
+                  "startLine": 7
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "syntax error"
+          },
+          "ruleId": "syntaxError"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/opt/rtems-qual-only/cpukit/b.c"
+                },
+                "region": {
+                  "endColumn": 3,
+                  "endLine": 9,
+                  "startColumn": 3,
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The scope of the variable 'y' can be reduced."
+          },
+          "ruleId": "variableScope"
+        },
+        {
+          "level": "note",
+          "message": {
+            "text": "Active checkers: 160/592"
+          },
+          "ruleId": "checkersReport"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/opt/rtems-qual-only/cpukit/b.c"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Include file: <stdio.h> not found."
+          },
+          "ruleId": "missingIncludeSystem"
+        },
+        {
+          "level": "style",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "cpukit/driver%231.c"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The function 'f' is never used."
+          },
+          "ruleId": "unusedFunction"
+        },
+        {
+          "level": "style",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/opt/rtems-qual-only/cpukit/dev%20ice.c"
+                },
+                "region": {
+                  "endColumn": 1,
+                  "endLine": 2,
+                  "startColumn": 1,
+                  "startLine": 2
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The function 'g' is never used."
+          },
+          "ruleId": "unusedFunction"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Cppcheck",
+          "rules": []
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

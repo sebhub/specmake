@@ -25,8 +25,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import itertools
+from typing import Any
 
-from specitems import Item, TextContent
+from specitems import Item, TextContent, data_digest
 
 from .pkgitems import BuildItem, BuildItemMapper
 
@@ -58,8 +59,31 @@ def _add_issues(content: TextContent, mapper: BuildItemMapper,
 there were no {which} associated.""")
 
 
+def _item_data(item: Item) -> dict[str, Any]:
+    data = dict(item.data)
+    data.pop("workspace-hash", None)
+    return data
+
+
 class PackageChanges(BuildItem):
     """ Provides package change descriptions. """
+
+    def digest(self) -> str:
+        # The change descriptions depend on the package status items, on the
+        # issue items which they link to, and on the issue databases.
+        data: list[Any] = [super().digest()]
+        databases: dict[str, Item] = {}
+        for change in self.item["change-list"]:
+            # Only a document builder can substitute the descriptions
+            package_status = self.item.map(
+                self.mapper.substitute(change["package-status"], self.item))
+            data.append(_item_data(package_status))
+            for link in package_status.links_to_parents("issue"):
+                data.append(_item_data(link.item))
+                for database in link.item.parents("issue-member"):
+                    databases[database.uid] = database
+        data.extend(_item_data(databases[uid]) for uid in sorted(databases))
+        return data_digest({"data": data})
 
     def _get_issues(self, change: dict[str,
                                        str]) -> tuple[set[Item], set[Item]]:
@@ -124,13 +148,22 @@ class PackageChanges(BuildItem):
         change_list = self._get_change_list(mapper, section_level, True)
         return "\n".join(itertools.chain.from_iterable(change_list))
 
+    def get_current_issue_status(
+            self, mapper: BuildItemMapper) -> tuple[set[Item], set[Item]]:
+        """
+        Get the closed and the open issues of the current package version.
+
+        An issue with the status N/A is in neither set.
+        """
+        return self._get_issues(
+            mapper.substitute_data(self.item["change-list"][-1],
+                                   item=self.item))
+
     def get_open_issues(self, mapper: BuildItemMapper,
                         section_level: int) -> str:
         """ Get the open issues using the section level. """
         content = mapper.create_content(section_level=section_level)
-        _, open_issues = self._get_issues(
-            mapper.substitute_data(self.item["change-list"][-1],
-                                   item=self.item))
+        _, open_issues = self.get_current_issue_status(mapper)
         _add_issues(content, mapper, open_issues, "Open issues",
                     _issue_prologue("open issues"), "open")
         return "\n".join(content)

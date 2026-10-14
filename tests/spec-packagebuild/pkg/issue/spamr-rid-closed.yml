@@ -1,0 +1,17 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+created: '2026-10-13T10:00Z'
+enabled-by: paf-spamr
+identifier: '45'
+labels:
+- RID
+links:
+- role: issue-member
+  uid: database
+milestone: null
+pkg-type: issue
+status: closed
+subject: Subject
+type: pkg
+updated: '2026-10-13T10:00Z'

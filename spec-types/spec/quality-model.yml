@@ -1,0 +1,30 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+- role: spec-refinement
+  spec-key: type
+  spec-value: quality-model
+  uid: root
+spec-description: |
+  The quality model item holds the thresholds of the metrics which the
+  software product assurance milestone report checks.  The software product
+  assurance plan shows these thresholds in its quality model table.
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      thresholds:
+        description: |
+          It shall be the thresholds of the metrics which the software product
+          assurance milestone report checks.
+        spec-type: quality-model-thresholds
+    description: |
+      This set of attributes specifies a quality model.
+    mandatory-attributes: all
+spec-name: Quality Model Item Type
+spec-type: quality-model
+type: spec

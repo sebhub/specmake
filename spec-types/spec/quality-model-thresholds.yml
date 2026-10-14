@@ -1,0 +1,118 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      comment-frequency:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Comment frequency in percent.  Otherwise, the metric is not
+          applicable.
+        spec-type: optional-int
+      cyclomatic-complexity:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Cyclomatic complexity (VG) per function.  The value is a number of
+          decisions.  Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      documentation-suitability:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Documentation suitability.  Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      lines-of-code:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Lines of code (LOC) per file.  The value is a number of code and
+          preprocessor lines.  Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      milestone-tracking:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Milestone tracking.  Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      nesting-level:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Nesting level per function.  The value is a number of indentation
+          levels.  Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      requirement-clarity:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Requirement clarity.  The value is a ratio.  Otherwise, the metric is
+          not applicable.
+        spec-type: optional-int
+      requirement-completeness:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Requirement completeness.  The value is a ratio.  Otherwise, the
+          metric is not applicable.
+        spec-type: optional-int
+      requirement-implementation-coverage:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Requirement implementation coverage.  The value is a ratio.
+          Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      requirement-testability:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Requirement testability in percent.  Otherwise, the metric is not
+          applicable.
+        spec-type: optional-int
+      rid-action-status:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          RID/action status.  The value is a number of open actions.
+          Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      safety-activities-adequacy:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          Safety activities adequacy.  Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      spr-ncr-status:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          SPR/NCR status.  The value is a number of open issues.  Otherwise,
+          the metric is not applicable.
+        spec-type: optional-int
+      user-documentation-clarity:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          User documentation clarity.  The value is a ratio.  Otherwise, the
+          metric is not applicable.
+        spec-type: optional-int
+      user-documentation-completeness:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          User documentation completeness.  The value is a number of document
+          files and a number of items with an open item marker.  Otherwise, the
+          metric is not applicable.
+        spec-type: optional-int
+      user-manual-suitability:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          User manual suitability.  Otherwise, the metric is not applicable.
+        spec-type: optional-int
+      vv-coverage:
+        description: |
+          If the value is present, then it shall be the threshold of the metric
+          V&V coverage.  The value is a ratio.  Otherwise, the metric is not
+          applicable.
+        spec-type: optional-int
+    description: |
+      This set of attributes specifies the metric thresholds of a quality
+      model.
+    mandatory-attributes: all
+spec-name: Quality Model Thresholds
+spec-type: quality-model-thresholds
+type: spec

@@ -1,0 +1,20 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  str:
+    assert:
+      in:
+      - NOK
+      - OK
+    description: |
+      It shall be the result of a metric.
+spec-name: SPAMR Metric Result
+spec-type: pkg-spamr-metric-result
+type: spec

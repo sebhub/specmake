@@ -1,0 +1,23 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+- role: spec-refinement
+  spec-key: role
+  spec-value: quality-model
+  uid: link
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes: {}
+    description: |
+      It defines the quality model role of links and is used to associate a
+      quality model with a software product assurance milestone report.
+    mandatory-attributes: all
+spec-name: Quality Model Link Role
+spec-type: pkg-quality-model-role
+type: spec

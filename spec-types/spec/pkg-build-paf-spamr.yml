@@ -1,6 +1,7 @@
 SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
 - Copyright (C) 2020 EDISOFT
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
 enabled-by: true
 links:
 - role: spec-member
@@ -9,27 +10,22 @@ links:
   spec-key: document-type
   spec-value: paf-spamr
   uid: pkg-sphinx-document
-spec-description: null
+spec-description: |
+  The item shall have a link with the ${pkg-quality-model-role:/spec-name} to
+  the quality model.  It shall have the inputs ``clang-analyzer``,
+  ``cppcheck``, ``metrixplusplus`` and ``quality-scanner`` with the outputs of
+  the analysis tools.  The ``rtems`` inputs shall be the source directories
+  of the analysed code.  The ``package-changes`` input shall provide the
+  status of the issues for the package.
 spec-example: null
 spec-info:
   dict:
     attributes:
-      cppcheck-command:
+      metric-verdicts:
         description: |
-          It shall be cppcheck command to run on RTEMS.
-        spec-type: list-str
-      metrics-thresholds:
-        description: |
-          It shall be the RTEMS metrics thresholds to apply.
-        spec-type: pkg-metrics-thresholds
-      metrixplusplus-collect:
-        description: |
-          It shall be the metrix++ RTEMS metrics collect command.
-        spec-type: list-str
-      metrixplusplus-view:
-        description: |
-          It shall be the metrix++ RTEMS metrics gather command.
-        spec-type: list-str
+          It shall be the verdicts of the reviewer for the metrics which a
+          review evaluates.
+        spec-type: pkg-spamr-metric-verdicts
     description: |
       This set of attributes specifies the additional specific PAF SPAMR
       document attributes.

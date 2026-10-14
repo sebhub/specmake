@@ -1,0 +1,230 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "artifacts": [
+        {
+          "location": {
+            "uri": "rtems/req/action.yml",
+            "uriBaseId": "SPEC"
+          },
+          "properties": {
+            "kind": "item",
+            "uid": "/rtems/req/action"
+          }
+        },
+        {
+          "location": {
+            "uri": "pkg/component.yml",
+            "uriBaseId": "SPEC"
+          },
+          "properties": {
+            "kind": "item",
+            "uid": "/pkg/component"
+          }
+        },
+        {
+          "location": {
+            "uri": "source/a.rst",
+            "uriBaseId": "/pkg/source/doc-a"
+          },
+          "properties": {
+            "kind": "document",
+            "path": "source/a.rst",
+            "uid": "/pkg/source/doc-a"
+          }
+        },
+        {
+          "location": {
+            "uri": "b.md",
+            "uriBaseId": "/pkg/source/doc-b"
+          },
+          "properties": {
+            "kind": "document",
+            "path": "b.md",
+            "uid": "/pkg/source/doc-b"
+          }
+        }
+      ],
+      "columnKind": "unicodeCodePoints",
+      "originalUriBaseIds": {
+        "/pkg/source/doc-a": {
+          "description": {
+            "text": "The directory of the document input /pkg/source/doc-a."
+          }
+        },
+        "/pkg/source/doc-b": {
+          "description": {
+            "text": "The directory of the document input /pkg/source/doc-b."
+          }
+        },
+        "SPEC": {
+          "description": {
+            "text": "The specification directory which contains the item file."
+          }
+        }
+      },
+      "results": [
+        {
+          "level": "note",
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "/rtems/req/action:/text",
+                  "kind": "member"
+                }
+              ],
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 0,
+                  "uri": "rtems/req/action.yml",
+                  "uriBaseId": "SPEC"
+                }
+              },
+              "properties": {
+                "attribute": "/text",
+                "column-in-value": 1,
+                "line-in-value": 1,
+                "text": "TBD"
+              }
+            }
+          ],
+          "message": {
+            "text": "TBD found"
+          },
+          "ruleId": "TBD",
+          "ruleIndex": 0
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "/pkg/component:/name",
+                  "kind": "member"
+                }
+              ],
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 1,
+                  "uri": "pkg/component.yml",
+                  "uriBaseId": "SPEC"
+                }
+              },
+              "properties": {
+                "attribute": "/name",
+                "column-in-value": 1,
+                "line-in-value": 1,
+                "text": "TBC"
+              }
+            }
+          ],
+          "message": {
+            "text": "TBC found"
+          },
+          "ruleId": "TBC",
+          "ruleIndex": 1
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 2,
+                  "uri": "source/a.rst",
+                  "uriBaseId": "/pkg/source/doc-a"
+                },
+                "contextRegion": {
+                  "endColumn": 4,
+                  "snippet": {
+                    "text": "TBD"
+                  },
+                  "startColumn": 1,
+                  "startLine": 5
+                },
+                "region": {
+                  "endColumn": 4,
+                  "snippet": {
+                    "text": "TBD"
+                  },
+                  "startColumn": 1,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "TBD found"
+          },
+          "ruleId": "TBD",
+          "ruleIndex": 0
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 2,
+                  "uri": "source/a.rst",
+                  "uriBaseId": "/pkg/source/doc-a"
+                },
+                "contextRegion": {
+                  "endColumn": 4,
+                  "snippet": {
+                    "text": "TBC"
+                  },
+                  "startColumn": 1,
+                  "startLine": 9
+                },
+                "region": {
+                  "endColumn": 4,
+                  "snippet": {
+                    "text": "TBC"
+                  },
+                  "startColumn": 1,
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "TBC found"
+          },
+          "ruleId": "TBC",
+          "ruleIndex": 1,
+          "suppressions": [
+            {
+              "justification": "The glossary term *TBC* names the marker.",
+              "kind": "external"
+            }
+          ]
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "QualityScanner",
+          "rules": [
+            {
+              "id": "TBD",
+              "shortDescription": {
+                "text": "To be defined"
+              }
+            },
+            {
+              "id": "TBC",
+              "shortDescription": {
+                "text": "To be confirmed"
+              }
+            }
+          ],
+          "version": "1.7.6"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

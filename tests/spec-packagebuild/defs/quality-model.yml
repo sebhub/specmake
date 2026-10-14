@@ -1,0 +1,24 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links: []
+thresholds:
+  comment-frequency: 30
+  cyclomatic-complexity: 10
+  documentation-suitability: 1
+  lines-of-code: 500
+  milestone-tracking: null
+  nesting-level: 5
+  requirement-clarity: 0
+  requirement-completeness: 0
+  requirement-implementation-coverage: 1
+  requirement-testability: 80
+  rid-action-status: null
+  safety-activities-adequacy: 1
+  spr-ncr-status: null
+  user-documentation-clarity: 0
+  user-documentation-completeness: 0
+  user-manual-suitability: 1
+  vv-coverage: 1
+type: quality-model
