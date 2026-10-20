@@ -52,7 +52,7 @@ from .directorystate import DirectoryState, RepositoryState
 from .pkgfactory import create_build_item_factory
 from .pkgitems import (BuildItem, BuildItemFactory, BuildItemMapper,
                        BuildItemTypeProvider, PackageBuildDirector,
-                       PackageComponent)
+                       PackageComponent, build_item_input)
 from .pkgtemplate import BuildItemTemplate, run_attribute_actions
 
 
@@ -996,6 +996,29 @@ def _add_buildspace_submodules(
             pass
 
 
+def _component_depth(item: Item) -> int:
+    depth = 0
+    while True:
+        try:
+            item = build_item_input(item, "component")
+        except KeyError:
+            return depth
+        depth += 1
+
+
+def _discard_order(cache: ItemCache, package_uid: str,
+                   uids: list[str]) -> list[str]:
+    """
+    Return the UIDs in the order of the discard.  An item goes before the
+    components which it gets its component values from in the cache.  The
+    package component goes last.
+    """
+    return sorted(uids,
+                  key=lambda uid:
+                  (uid != package_uid, _component_depth(cache[uid]), uid),
+                  reverse=True)
+
+
 def _discard_buildspace_items(director: PackageBuildDirector,
                               discard_uids: list[str]) -> None:
     for uid in discard_uids:
@@ -1065,12 +1088,13 @@ def export_to_buildspace(workspace: WorkspaceContext,
     _delete_buildspace_items(buildspace.director, uids.deleted, item_files)
     _add_buildspace_submodules(workspace.director.package, buildspace.director)
 
-    # Discard other items first and the modified workspace items in reverse
-    # order since we may have modified the package component which provides the
-    # Git directory
+    # Discard other items first and the package component last, since the
+    # package component provides the Git directory
     _discard_buildspace_items(buildspace.director, uids.other_modified)
-    _discard_buildspace_items(buildspace.director,
-                              sorted(uids.workspace_modified, reverse=True))
+    _discard_buildspace_items(
+        buildspace.director,
+        _discard_order(buildspace.cache, workspace.director.package_uid,
+                       uids.workspace_modified))
 
     for uid in uids.workspace_copy:
         _add_buildspace_item(buildspace, uid,

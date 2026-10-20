@@ -633,3 +633,84 @@ def test_workspace_component_invalid_feedback_mapping(tmpdir):
     assert ("states the invalid replacement 'pkg.\\3' of the pattern "
             "'TEST_CONFIG_(F)(.*)' for the enabled set key 'TEST_CONFIG_FOO': "
             "invalid group reference 3") in str(err.value)
+
+
+def test_workspace_component_discard_order(tmpdir):
+    test_dir = os.path.dirname(__file__)
+    workspace_config = WorkspaceConfig(
+        spec_directories=[
+            os.path.join(test_dir, name)
+            for name in ("spec-pkg", "spec-pkg-component")
+        ],
+        workspace_directory=os.path.join(test_dir, "workspace"),
+        cache_directory=os.path.join(tmpdir, "cache"))
+    workspace = create_workspace(workspace_config)
+    deployment_directory = str(tmpdir)
+    buildspace_config = BuildspaceConfig(
+        spec_directory=os.path.join(tmpdir, "build", "spec"),
+        cache_directory=os.path.join(tmpdir, "build", "cache"),
+        git_directory=deployment_directory,
+        verify_specification_format=True)
+    status = run_command(["git", "init"], deployment_directory)
+    assert status == 0
+    package = workspace.director.package
+    package.item["deployment-directory"] = deployment_directory
+    export_to_buildspace(workspace, buildspace_config)
+
+    # The UID of the package component sorts after the UID of a
+    # subcomponent.  The subcomponent gets its license from the package
+    # component, so the export discards the subcomponent first.
+    work_bsp = workspace.director["/pkg/arch/bsp/cfg/component"]
+    work_bsp.item["has-sibling-0"] = "modified"
+    package.item["a"] = "modified"
+    buildspace = export_to_buildspace(workspace, buildspace_config)
+    build_bsp = buildspace.director["/pkg/arch/bsp/cfg/component"]
+    assert build_bsp.item["has-sibling-0"] == "modified"
+    assert buildspace.director.package.item["a"] == "modified"
+
+
+def _component_parent(spec_dir: str, bsp: str, parent: str) -> None:
+    file = os.path.join(spec_dir, "pkg", "arch", bsp, "cfg", "component.yml")
+    with open(file, "r", encoding="utf-8") as src:
+        text = src.read()
+    with open(file, "w", encoding="utf-8") as dst:
+        dst.write(text.replace("uid: ../../component", f"uid: {parent}"))
+
+
+def test_workspace_component_discard_order_reparent(tmpdir):
+    test_dir = os.path.dirname(__file__)
+    deployment_directory = str(tmpdir)
+    buildspace_config = BuildspaceConfig(
+        spec_directory=os.path.join(tmpdir, "build", "spec"),
+        cache_directory=os.path.join(tmpdir, "build", "cache"),
+        git_directory=deployment_directory,
+        verify_specification_format=True)
+    status = run_command(["git", "init"], deployment_directory)
+    assert status == 0
+
+    def export(name: str, bsp: str, parent: str):
+        spec_dir = os.path.join(tmpdir, name, "spec")
+        shutil.copytree(os.path.join(test_dir, "spec-pkg-component"), spec_dir)
+        _component_parent(spec_dir, bsp, parent)
+        workspace = create_workspace(
+            WorkspaceConfig(
+                spec_directories=[
+                    os.path.join(test_dir, "spec-pkg"), spec_dir
+                ],
+                workspace_directory=os.path.join(test_dir, "workspace"),
+                cache_directory=os.path.join(tmpdir, name, "cache")))
+        package = workspace.director.package
+        package.item["deployment-directory"] = deployment_directory
+        return export_to_buildspace(workspace, buildspace_config)
+
+    export("old", "bsp-2", "../../bsp/cfg/component")
+
+    # The workspace swaps the parent and the child of two components.  The
+    # discard follows the component links of the buildspace, so the export
+    # discards the old child before the old parent.
+    buildspace = export("new", "bsp", "../../bsp-2/cfg/component")
+    assert [
+        link.item.uid for link in buildspace.
+        cache["/pkg/arch/bsp/cfg/component"].links_to_parents("input")
+        if link["name"] == "component"
+    ] == ["/pkg/arch/bsp-2/cfg/component"]
