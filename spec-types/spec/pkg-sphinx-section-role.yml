@@ -28,7 +28,7 @@ spec-info:
         description: |
           It shall be the section key.
         spec-type: name
-    description: null
+    description: |
       It defines the document section role of links and is used to add a
       section to the link target document.  The sections added to a document
       are grouped by the section key.
