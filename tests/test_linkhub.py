@@ -115,6 +115,8 @@ def test_linkhub(caplog, tmp_path):
     ) == f"`spec:/​req/​root <{tmp_path}/pkg/doc-ts-srs/html/requirements.html#specreqroot>`__"
     assert mapper.get_link(item_cache["/req/disabled"],
                            "foobar") == "``spec:/​req/​disabled``"
+    assert mapper.get_link(item_cache["/req/disabled"], "foobar",
+                           "name") == "``name``"
     assert mapper.get_link(item_cache["/rtems/if/forward-decl-disabled"],
                            "foobar") == "``StructOnly``"
     assert mapper.get_link(item_cache["/rtems/if/func-disabled"],
