@@ -24,10 +24,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from pathlib import Path
+import subprocess
+
 import pytest
 
 import specmake.climake
 from specmake.climake import climake
+
+from .util import create_package
 
 
 class _Director:
@@ -84,3 +89,69 @@ def test_package(tmp_path, monkeypatch, use_git):
 def test_package_invalid(arguments):
     with pytest.raises(ValueError):
         climake(["specmake", "--package"] + arguments)
+
+
+def _deployment(caplog, tmp_path: Path) -> Path:
+    package = create_package(caplog, tmp_path, Path("spec-archiver"), [])
+    subdir = tmp_path / "dir" / "subdir"
+    subdir.mkdir(parents=True, exist_ok=True)
+    (subdir / "d.txt").write_text("d", encoding="utf-8")
+    package.director.build_package()
+    return tmp_path / "pkg"
+
+
+def _make(tmp_path: Path, *arguments: str) -> None:
+    climake([
+        "specmake", "--spec-directory",
+        str(tmp_path / "pkg" / "spec"), "--cache-directory",
+        str(tmp_path / "cache-make"), *arguments
+    ])
+
+
+def test_make_items(caplog, tmp_path):
+    archive = _deployment(caplog, tmp_path) / "build" / "archive-1.tar.xz"
+    archive.unlink()
+
+    _make(tmp_path, "--force", "/pkg/archive-1", "/pkg/archive-1")
+
+    assert archive.is_file()
+
+
+def test_make_items_of_an_invalid_specification(caplog, tmp_path):
+    deployment = _deployment(caplog, tmp_path)
+    archive = deployment / "build" / "archive-1.tar.xz"
+    archive.unlink()
+    item = deployment / "spec" / "pkg" / "archive-1.yml"
+    with open(item, "a", encoding="utf-8") as dst:
+        dst.write("no-such-attribute: null\n")
+
+    _make(tmp_path, "--spec-verify", "--force", "/pkg/archive-1",
+          "/pkg/archive-1")
+
+    # A specification with errors stops the command before any build
+    assert not archive.exists()
+
+
+def _git(directory: Path, *arguments: str) -> str:
+    return subprocess.run(["git", *arguments],
+                          cwd=directory,
+                          check=True,
+                          capture_output=True,
+                          text=True).stdout
+
+
+def test_make_items_with_git(caplog, tmp_path, monkeypatch):
+    for kind in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{kind}_NAME", "A")
+        monkeypatch.setenv(f"GIT_{kind}_EMAIL", "a@b")
+    deployment = _deployment(caplog, tmp_path)
+    _git(deployment, "init", "--quiet")
+    _git(deployment, "add", "--all")
+    _git(deployment, "commit", "--quiet", "-m", "Initial")
+
+    _make(tmp_path, "--spec-verify", "--use-git", "--force", "/pkg/spec",
+          "/pkg/spec")
+
+    # Each build step commits its state to the deployment directory
+    assert "/pkg/spec: Refresh" in _git(deployment, "log", "--format=%s")
+    assert _git(deployment, "status", "--short") == ""
