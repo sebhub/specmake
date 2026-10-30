@@ -2,6 +2,15 @@
 
 % Copyright (C) 2023 embedded brains GmbH & Co. KG
 
+@`.:/push-enabled-by:sphinx-builder`
+This is enabled.
+@`.:/push-enabled-by:not: sphinx-builder`
+This is disabled.
+@`.:/pop-enabled-by` is no marker.
+${.:/pop-enabled-by} is no marker.
+This is disabled, too.
+@`.:/pop-enabled-by`
+@`.:/pop-enabled-by`
 ${.:/push-enabled-by:and: [sphinx-builder, {not: {not: sphinx-builder}}]}
 ${.:/push-enabled-by:not: sphinx-builder}
 This is disabled.

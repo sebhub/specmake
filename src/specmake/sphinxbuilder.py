@@ -54,9 +54,11 @@ from .testoutputparser import augment_report
 
 _BREAK = "\\break"
 
-_PUSH_ENABLED_BY = re.compile(r"^\${\.:/push-enabled-by:(.+)}$")
+_PUSH_ENABLED_BY = re.compile(r"^(?:\$\{\.:/push-enabled-by:(?P<brace>.+)\}|"
+                              r"@`\.:/push-enabled-by:(?P<tick>[^`]+)`)$")
 
-_POP_ENABLED_BY = re.compile(r"^\${\.:/pop-enabled-by")
+_POP_ENABLED_BY = re.compile(r"^(?:\$\{\.:/pop-enabled-by\}|"
+                             r"@`\.:/pop-enabled-by`)$")
 
 _EXTENSIONS = (".md", ".rst")
 
@@ -980,7 +982,7 @@ class SphinxBuilder(DirectoryState):
         for line in lines:
             push_match = _PUSH_ENABLED_BY.search(line)
             if push_match is not None:
-                data = push_match.group(1)
+                data = push_match.group("brace") or push_match.group("tick")
                 enabled_by = yaml.load(data, yaml.SafeLoader)
                 enabled.append(enabled[-1]
                                and is_enabled(self.enabled_set, enabled_by))

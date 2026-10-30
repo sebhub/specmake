@@ -248,6 +248,7 @@ text
 
 % Copyright (C) 2023 embedded brains GmbH & Co. KG
 
+This is enabled.
 footer
 2020 embedded brains GmbH \\& Co. KG
 footer right
