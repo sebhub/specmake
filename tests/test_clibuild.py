@@ -24,6 +24,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+from pathlib import Path
+import shutil
+
 import pytest
 
 import specmake.clibuild
@@ -102,3 +105,26 @@ def test_export_only(tmp_path, monkeypatch, export_only):
         assert not buildspace.director.builds
     else:
         assert buildspace.director.builds == [(None, ["f"], None)]
+
+
+def test_create_the_deployment_directory(tmp_path, monkeypatch):
+    tests = Path(__file__).parent
+    spec = tmp_path / "config"
+    shutil.copytree(tests / "spec-archiver", spec)
+    with open(spec / "pkg" / "component.yml", "a", encoding="utf-8") as dst:
+        dst.write(f"tmpdir: {tmp_path}\n")
+    monkeypatch.chdir(tmp_path)
+
+    clibuild([
+        "specbuild", "--config-directory",
+        str(tests / "test-files"), "--cache-directory",
+        str(tmp_path / "cache"), "--export-only", "--do-not-use-git",
+        str(spec),
+        str(tests / "spec-license")
+    ])
+
+    # The command initializes a Git repository in a new deployment directory
+    deployment = tmp_path / "pkg"
+    assert (deployment / ".git").is_dir()
+    assert (deployment / "build" / "spec" / "pkg" / "component.json").is_file()
+    assert not (deployment / "build" / "archive-0.tar.xz").exists()
