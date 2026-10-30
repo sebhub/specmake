@@ -344,10 +344,8 @@ def _add_errata_documents(ctx: _Context) -> None:
         if location:
             text = f"{text}, {location}"
         documents.append(text)
-    if documents:
-        with ctx.content.topic("Source"):
-            ctx.content.add_list(documents,
-                                 "The vendor states this erratum in:")
+    with ctx.content.topic("Source"):
+        ctx.content.add_list(documents, "The vendor states this erratum in:")
 
 
 def _document_errata(ctx: _Context) -> None:
