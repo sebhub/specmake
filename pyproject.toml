@@ -100,4 +100,4 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--cov=specmake --cov-fail-under=90 --cov-branch --cov-report=term-missing --cov-config=.coveragerc"
+addopts = "--cov=specmake --cov-fail-under=100 --cov-branch --cov-report=term-missing --cov-config=.coveragerc"
