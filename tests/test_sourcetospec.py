@@ -2279,6 +2279,19 @@ def test_the_data_by_uid_reaches_the_item_of_its_uid_alone(tmp_path):
     assert ctx.applied_data_by_uid == {"/if/group"}
 
 
+def test_a_configured_placement_of_a_group_is_kept(tmp_path):
+    placement = {"role": "interface-placement", "uid": "configured"}
+    group = _foo_group(tmp_path, data={"links": [placement]})
+    for _ in range(2):
+        assert [
+            link for link in group.export()["links"]
+            if link["role"] == "interface-placement"
+        ] == [placement]
+    inferred = _foo_group(tmp_path).export()["links"][0]
+    assert inferred["role"] == "interface-placement"
+    assert inferred["uid"] != "configured"
+
+
 def test_a_group_item_has_no_notes(tmp_path):
     assert "notes" not in _foo_group(tmp_path).export()
 
