@@ -837,9 +837,7 @@ class DoxygenGroup(DoxygenContainer):
         for member in self.members():
             if member.is_header:
                 assert isinstance(member, DoxygenFile)
-                if member.group_ids:
-                    return member
-                continue
+                return member
             for file in member.files:
                 if file.is_header and file.group_ids:
                     return file
