@@ -59,9 +59,8 @@ from .testplanbuilder import TestPlanBuilder
 from .testreporter import TestReporter
 from .testrunner import (TestRunner, GRMONManualTestRunner,
                          SubprocessTestRunner, TestLog)
+from .testrunneragent import AgentTestRunner
 from .testrunneresa import ESATestRunner
-from .testrunnergit import GitTestRunner
-from .testrunnergrpc import GRPCTestRunner
 
 
 def create_build_item_factory() -> BuildItemFactory:
@@ -133,8 +132,7 @@ def create_build_item_factory() -> BuildItemFactory:
     factory.add_constructor("pkg/test-runner/dummy", TestRunner)
     factory.add_constructor("pkg/test-runner/grmon-manual",
                             GRMONManualTestRunner)
-    factory.add_constructor("pkg/test-runner/git", GitTestRunner)
-    factory.add_constructor("pkg/test-runner/grpc", GRPCTestRunner)
+    factory.add_constructor("pkg/test-runner/agent", AgentTestRunner)
     factory.add_constructor("pkg/test-runner/subprocess", SubprocessTestRunner)
     factory.add_constructor("requirement/non-functional/ecss", ECSSClause)
     return factory

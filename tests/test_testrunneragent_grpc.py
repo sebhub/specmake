@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-2-Clause
-""" Tests for the testrunnergrpc module. """
+""" Tests the agent test runner through gRPC. """
 
 # Copyright (C) 2023, 2026 embedded brains GmbH & Co. KG
 #
@@ -32,7 +32,7 @@ import pytest
 from specitems import ItemSelection
 
 import specmake
-from specmake import RunnerExecutable, GRPCTestRunner
+from specmake import RunnerExecutable, AgentTestRunner
 
 from .util import create_package
 
@@ -93,9 +93,9 @@ class _GRPCServiceStub:
 
 def test_testrunnergrpc(caplog, tmp_path, monkeypatch):
     _GRPCServiceStub.counter = 0
-    monkeypatch.setattr(specmake.testrunnergrpc.subprocess, "run",
+    monkeypatch.setattr(specmake.testrunneragent.subprocess, "run",
                         _subprocess_run)
-    monkeypatch.setattr(specmake.testrunnergrpc, "GRPCServiceStub",
+    monkeypatch.setattr(specmake.testrunneragent, "GRPCServiceStub",
                         _GRPCServiceStub)
     package = create_package(caplog, tmp_path, Path("spec-packagebuild"),
                              ["test-runner-grpc"])
@@ -104,7 +104,7 @@ def test_testrunnergrpc(caplog, tmp_path, monkeypatch):
     director.build_package(only=[test_logs_uid])
 
     runner = director["/pkg/test-runner/grpc"]
-    assert isinstance(runner, GRPCTestRunner)
+    assert isinstance(runner, AgentTestRunner)
 
     assert runner.substitute("${.:/target-name}") == "the/target"
 

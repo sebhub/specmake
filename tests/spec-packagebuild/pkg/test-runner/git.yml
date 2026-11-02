@@ -15,11 +15,6 @@ name: EB Test Runner for target ${.:/target-name}
 nm: ${.:/component/deployment-directory}/bin/${.:/component/arch}-rtems${.:/component/rtems-version}-nm
 params: {}
 pkg-type: test-runner
-remote:
-- enabled-by: foobar
-  value: /bleifus.git
-- enabled-by: true
-  value: /iris.git
 reset:
 - enabled-by: true
   value: bsp_reset
@@ -28,7 +23,15 @@ target:
 - enabled-by:
     not: no-target
   value: the/target
-test-runner-type: git
+test-runner-type: agent
 timeout-scaler: 2.0
+transport:
+- enabled-by: foobar
+  remote: /bleifus.git
+  type: git
+  wait-timeout-in-seconds: 60.0
+- enabled-by: true
+  remote: /iris.git
+  type: git
+  wait-timeout-in-seconds: 60.0
 type: pkg
-wait-timeout-in-seconds: 60.0

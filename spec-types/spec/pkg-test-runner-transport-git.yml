@@ -1,0 +1,31 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+- role: spec-refinement
+  spec-key: type
+  spec-value: git
+  uid: pkg-test-runner-transport
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      remote:
+        description: |
+          It shall be the Git remote of the test server bridge.
+        spec-type: str
+      wait-timeout-in-seconds:
+        description: |
+          It shall be the time in seconds to wait for the response to one
+          request.
+        spec-type: float
+    description: |
+      This set of attributes specifies a transport through a Git bridge.
+    mandatory-attributes: all
+spec-name: Git Bridge Test Runner Transport
+spec-type: pkg-test-runner-transport-git
+type: spec

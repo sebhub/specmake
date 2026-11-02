@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-2-Clause
-""" Tests for the testrunnergit module. """
+""" Tests the agent test runner through a Git bridge. """
 
 # Copyright (C) 2026 embedded brains GmbH & Co. KG
 #
@@ -31,7 +31,7 @@ from pathlib import Path
 from spectestrunner import gitclient, image, steps
 
 import specmake
-from specmake import GitTestRunner
+from specmake import AgentTestRunner
 
 from .util import create_package
 
@@ -97,9 +97,9 @@ class _Client:
 def test_testrunnergit(caplog, tmp_path, monkeypatch):
     _Client.counter = 0
     _Client.requests = []
-    monkeypatch.setattr(specmake.testrunnergrpc.subprocess, "run",
+    monkeypatch.setattr(specmake.testrunneragent.subprocess, "run",
                         _subprocess_run)
-    monkeypatch.setattr(specmake.testrunnergit.gitclient, "Client", _Client)
+    monkeypatch.setattr(specmake.testrunneragent.gitclient, "Client", _Client)
     package = create_package(caplog, tmp_path, Path("spec-packagebuild"),
                              ["test-runner-git"])
     test_logs_uid = "/pkg/test-logs/test-runner-git"
@@ -107,7 +107,7 @@ def test_testrunnergit(caplog, tmp_path, monkeypatch):
     director.build_package(only=[test_logs_uid])
 
     runner = director["/pkg/test-runner/git"]
-    assert isinstance(runner, GitTestRunner)
+    assert isinstance(runner, AgentTestRunner)
     assert runner.substitute("${.:/target-name}") == "the/target"
 
     target, timeout, request_steps, data, wait_timeout = _Client.requests[0]

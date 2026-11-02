@@ -1,6 +1,6 @@
 SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
-- Copyright (C) 2025 embedded brains GmbH & Co. KG
+- Copyright (C) 2025, 2026 embedded brains GmbH & Co. KG
 default-timeout-in-seconds: 90.0
 description: |
   Run the tests using an agent through gRPC.
@@ -18,16 +18,18 @@ pkg-type: test-runner
 reset:
 - enabled-by: true
   value: bsp_reset
-server-address:
-- enabled-by: foobar
-  value: 'bleifus:50051'
-- enabled-by: true
-  value: 'iris:50051'
 strip: ${.:/component/deployment-directory}/bin/${.:/component/arch}-rtems${.:/component/rtems-version}-strip
 target:
 - enabled-by:
     not: no-target
   value: the/target
-test-runner-type: grpc
+test-runner-type: agent
 timeout-scaler: 2.0
+transport:
+- enabled-by: foobar
+  server-address: bleifus:50051
+  type: grpc
+- enabled-by: true
+  server-address: iris:50051
+  type: grpc
 type: pkg

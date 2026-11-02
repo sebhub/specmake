@@ -1,0 +1,35 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+default-timeout-in-seconds: 90.0
+description: |
+  Run the tests using an agent through gRPC or a Git bridge.
+do-not-run: []
+enabled-by: test-runner-agent
+links:
+- role: target
+  uid: /target/alpha
+max-retry-count-per-executable: 3
+min-timeout-in-seconds: 10.0
+name: EB Test Runner for target ${.:/target-name}
+nm: ${.:/component/deployment-directory}/bin/${.:/component/arch}-rtems${.:/component/rtems-version}-nm
+params: {}
+pkg-type: test-runner
+reset:
+- enabled-by: true
+  value: bsp_reset
+strip: ${.:/component/deployment-directory}/bin/${.:/component/arch}-rtems${.:/component/rtems-version}-strip
+target:
+- enabled-by: true
+  value: the/target
+test-runner-type: agent
+timeout-scaler: 2.0
+transport:
+- enabled-by: test-runner-agent-git
+  remote: /iris.git
+  type: git
+  wait-timeout-in-seconds: 60.0
+- enabled-by: test-runner-agent-grpc
+  server-address: iris:50051
+  type: grpc
+type: pkg

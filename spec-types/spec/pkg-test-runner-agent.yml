@@ -1,13 +1,13 @@
 SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
-- Copyright (C) 2024 embedded brains GmbH & Co. KG
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
 enabled-by: true
 links:
 - role: spec-member
   uid: root
 - role: spec-refinement
   spec-key: test-runner-type
-  spec-value: grpc
+  spec-value: agent
   uid: pkg-test-runner
 spec-description: null
 spec-example: null
@@ -22,10 +22,6 @@ spec-info:
         description: |
           It shall be the symbol name of the reset function.
         spec-type: pkg-optional-value-list
-      server-address:
-        description: |
-          It shall be the gRPC server address.
-        spec-type: pkg-optional-value-list
       strip:
         description: |
           It shall be the path to the optional strip tool.
@@ -34,9 +30,14 @@ spec-info:
         description: |
           It shall be the target identifier.
         spec-type: pkg-optional-value-list
+      transport:
+        description: |
+          It shall be the list of transports to the test server.
+        spec-type: pkg-test-runner-transport-list
     description: |
-      This set of attributes specifies an gRPC agent test runner.
+      This set of attributes specifies a test runner which submits the tests
+      to a test server through the transport which the enabled set selects.
     mandatory-attributes: all
-spec-name: gRPC Agent Test Runner Item Type
-spec-type: pkg-test-runner-grpc
+spec-name: Agent Test Runner Item Type
+spec-type: pkg-test-runner-agent
 type: spec

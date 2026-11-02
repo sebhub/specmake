@@ -1,0 +1,28 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+enabled-by: true
+links:
+- role: spec-member
+  uid: root
+spec-description: null
+spec-example: null
+spec-info:
+  dict:
+    attributes:
+      enabled-by:
+        description: |
+          It shall define the conditions under which the transport is
+          enabled.
+        spec-type: enabled-by
+      type:
+        description: |
+          It shall be the transport type.
+        spec-type: name
+    description: |
+      This set of attributes specifies a transport of a test runner to a test
+      server.
+    mandatory-attributes: all
+spec-name: Test Runner Transport
+spec-type: pkg-test-runner-transport
+type: spec

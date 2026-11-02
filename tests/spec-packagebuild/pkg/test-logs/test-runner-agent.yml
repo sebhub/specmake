@@ -1,0 +1,35 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+- Copyright (C) 2026 embedded brains GmbH & Co. KG
+directory: ${.:/component/deployment-directory}
+directory-state-type: test-log
+enabled-by: test-runner-agent
+files:
+- file: test-log-test-runner-agent.json
+  hash: null
+hash: null
+license-info: []
+links:
+- hash: null
+  name: component
+  role: input
+  uid: ../component
+- hash: null
+  name: target
+  role: input
+  uid: /target/alpha
+- hash: null
+  name: build-configuration
+  role: input
+  uid: ../build-config
+- hash: null
+  name: source
+  role: input
+  uid: ../build/bsp
+- hash: null
+  output-name: log
+  params: {}
+  role: make
+  uid: ../test-runner/agent
+pkg-type: directory-state
+type: pkg
