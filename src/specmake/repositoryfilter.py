@@ -77,16 +77,12 @@ class RepositoryFilter:
         """ Return true, if the path passes the filter. """
         if path in self.replace_files:
             return True
-        decision = True
-        length = -1
-        for element, keep in self.path_rules.items():
-            if len(element) <= length:
-                continue
-            if path == element or (element.endswith("/")
-                                   and path.startswith(element)):
-                decision = keep
-                length = len(element)
-        return decision
+        keep = self.path_rules.get(path)
+        end = path.rfind("/")
+        while keep is None and end >= 0:
+            keep = self.path_rules.get(path[:end + 1])
+            end = path.rfind("/", 0, end)
+        return True if keep is None else keep
 
     def is_filtered(self, path: str) -> bool:
         """ Return true, if a rule drops or replaces the path. """

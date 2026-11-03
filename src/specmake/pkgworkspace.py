@@ -41,6 +41,8 @@ import tempfile
 from typing import Optional
 import urllib.request
 
+import yaml
+
 from specitems import (EnabledSet, Item, ItemCache, ItemCacheConfig,
                        ItemDataByUID, ItemGetValueContext, ItemSelection,
                        JSONItemCache, data_digest, hash_file, is_enabled,
@@ -500,6 +502,18 @@ class WorkspaceRepository(_WorkspaceItem):
     def copy_to_buildspace(self, buildspace_item: BuildItem) -> None:
         assert isinstance(buildspace_item, RepositoryState)
         self._git_clone(buildspace_item)
+
+    def item_filter(self) -> "_ItemFilter":
+        """
+        Return the item filter of the repository directory.  A disabled
+        repository filters no item.
+        """
+        prefix = os.path.join(
+            os.path.abspath(self["directory"].removeprefix("file://")), "")
+        repository_filter = None
+        if self.item.enabled:
+            repository_filter = self._repository_filter()
+        return _ItemFilter(prefix, repository_filter)
 
     def _repository_filter(self) -> RepositoryFilter | None:
         return load_repository_filter(self.uid,
@@ -1135,9 +1149,68 @@ def load_buildspace(
     return buildspace
 
 
+@dataclasses.dataclass
+class _ItemFilter:
+    prefix: str
+    repository_filter: RepositoryFilter | None
+
+
+def _filter_items(workspace: WorkspaceContext) -> list[str]:
+    """
+    Apply the repository filters to the items of the repository directories.
+    Remove each item which a filter drops.  Give each item which a filter
+    replaces the data of the replacement.  Return the UIDs of the removed
+    items.
+
+    The innermost repository directory which contains the file of an item
+    decides.  The repository filter items stay.
+    """
+    item_filters: list[_ItemFilter] = []
+    for item in workspace.cache.items_by_type.get("pkg/workspace/repository",
+                                                  []):
+        repository = workspace.director[item.uid]
+        assert isinstance(repository, WorkspaceRepository)
+        with repository.scope():
+            item_filters.append(repository.item_filter())
+    item_filters.sort(key=lambda item_filter: len(item_filter.prefix),
+                      reverse=True)
+    cache = workspace.cache
+    stays = set(cache.items_by_type.get("pkg/repository-filter", []))
+    dropped: list[tuple[Item, RepositoryFilter]] = []
+    replaced: list[tuple[Item, RepositoryFilter, str]] = []
+    for item in cache.values():
+        file = item.file
+        for item_filter in item_filters:
+            if file.startswith(item_filter.prefix):
+                break
+        else:
+            continue
+        repository_filter = item_filter.repository_filter
+        if repository_filter is None or item in stays:
+            continue
+        path = file[len(item_filter.prefix):]
+        content = repository_filter.replace_files.get(path)
+        if content is not None:
+            replaced.append((item, repository_filter, content))
+        elif not repository_filter.keep(path):
+            dropped.append((item, repository_filter))
+    for item, repository_filter, content in replaced:
+        logging.info("%s: replace the filtered item %s", repository_filter.uid,
+                     item.uid)
+        data = yaml.load(content, Loader=yaml.SafeLoader)
+        data["_file"] = item.file
+        cache.replace_item(item.uid, data)
+    for item, repository_filter in dropped:
+        logging.info("%s: drop the filtered item %s", repository_filter.uid,
+                     item.uid)
+        cache.remove_item(item.uid)
+    return [item.uid for item, _ in dropped]
+
+
 def export_to_buildspace(workspace: WorkspaceContext,
                          config: BuildspaceConfig) -> BuildspaceContext:
     """ Export the workspace to the buildspace. """
+    _filter_items(workspace)
     buildspace = _create_buildspace(config, workspace.director.package_uid,
                                     list(workspace.cache.enabled_set),
                                     workspace.extra_type_data_by_uid)

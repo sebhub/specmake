@@ -34,6 +34,7 @@ import pytest
 from specware import run_command
 
 import specmake
+from specmake.pkgworkspace import _filter_items
 from specmake.repositoryfilter import RepositoryFilter
 
 from .test_workspace import (_create_buildspace,
@@ -106,6 +107,13 @@ def test_repository_filter_keep():
     assert not repository_filter.keep("a/b/c")
     assert repository_filter.keep("a/b/c/d")
     assert repository_filter.keep("a/b/cd")
+    repository_filter = RepositoryFilter("/f", _BASELINE, {
+        "": False,
+        "a/b": False
+    }, {})
+    assert repository_filter.keep("x")
+    assert repository_filter.keep("a/b/c")
+    assert not repository_filter.keep("a/b")
 
 
 def test_repository_filter_history(caplog, tmpdir):
@@ -290,3 +298,72 @@ def test_repository_filter_fetch_error(tmpdir, monkeypatch):
     monkeypatch.setattr(specmake.pkgworkspace, "run_command", _run_command)
     with pytest.raises(IOError, match="cannot fetch commit"):
         _create_buildspace(tmpdir, _SPEC)
+
+
+_EMPTY_TERM = """SPDX-License-Identifier: CC-BY-SA-4.0
+copyrights: []
+enabled-by: true
+glossary-type: term
+links: []
+term: empty
+text: Empty.
+type: glossary
+"""
+
+_ITEMS = os.path.join(os.path.dirname(__file__), "spec-pkg-wk", "repo",
+                      "items")
+
+
+def _create_items_workspace(tmpdir, spec=()):
+    workspace = _create_workspace(tmpdir,
+                                  [*_SPEC, "spec-pkg-wk/repo/items", *spec])
+    workspace.cache["/filter"]["replace-files"].append({
+        "content": _EMPTY_TERM,
+        "enabled-by": True,
+        "path": "replaced.yml"
+    })
+    workspace.cache["/repo"]["directory"] = f"file://{_ITEMS}"
+    return workspace
+
+
+def test_repository_filter_items(tmpdir):
+    workspace = _create_items_workspace(tmpdir)
+    cache = workspace.cache
+    file = cache["/replaced"].file
+    assert _filter_items(workspace) == ["/private/dropped"]
+    assert "/kept" in cache
+    assert "/private/dropped" not in cache
+    assert "/filter" in cache
+    replaced = cache["/replaced"]
+    assert replaced["term"] == "empty"
+    assert replaced.file == file
+    assert not replaced["links"]
+    assert cache["/linker"].parent("glossary-member") is replaced
+    assert replaced.child("glossary-member") is cache["/linker"]
+    assert not _filter_items(workspace)
+
+
+def test_repository_filter_items_disabled(tmpdir, monkeypatch):
+    workspace = _create_items_workspace(tmpdir)
+    monkeypatch.setattr(type(workspace.cache["/repo"]), "enabled",
+                        property(lambda _item: False))
+    assert not _filter_items(workspace)
+    assert "/private/dropped" in workspace.cache
+    assert workspace.cache["/replaced"]["term"] == "replaced"
+
+
+def test_repository_filter_items_nested(tmpdir):
+    workspace = _create_items_workspace(tmpdir, ["spec-pkg-wk/repo/fetch"])
+    workspace.cache["/repo-2"]["directory"] = os.path.join(_ITEMS, "private")
+    assert not _filter_items(workspace)
+    assert "/private/dropped" in workspace.cache
+    assert workspace.cache["/replaced"]["term"] == "empty"
+
+
+def test_repository_filter_items_export(tmpdir, monkeypatch):
+    workspace = _create_workspace(tmpdir, _SPEC)
+    filtered = []
+    monkeypatch.setattr(specmake.pkgworkspace, "_filter_items",
+                        filtered.append)
+    _create_buildspace_from_workspace(tmpdir, workspace)
+    assert filtered == [workspace]
