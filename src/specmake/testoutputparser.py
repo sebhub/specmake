@@ -173,11 +173,7 @@ class TestOutputParser:
     def _test_build(self, index: int, line: str) -> bool:
         mobj = _TEST_BUILD.match(line)
         if mobj:
-            build = mobj.group(1)
-            if build:
-                self.data["info"]["build"] = build.split(", ")
-            else:
-                self.data["info"]["build"] = []
+            self.data["info"]["build"] = mobj.group(1).split()
             self.data["info"]["line-build"] = index
             self.consume = self._test_tools
             return True

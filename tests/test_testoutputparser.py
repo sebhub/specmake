@@ -473,8 +473,8 @@ def test_testoutputparser():
     del expected["test-suite"]
     assert report == expected
 
-    report = _check("*** TEST BUILD:",
-                    "*** TEST BUILD: RTEMS_DEBUG, RTEMS_SMP", 3, -1)
+    report = _check("*** TEST BUILD:", "*** TEST BUILD: RTEMS_DEBUG RTEMS_SMP",
+                    3, -1)
     expected = _report()
     expected["info"]["build"] = ["RTEMS_DEBUG", "RTEMS_SMP"]
     assert report == expected
