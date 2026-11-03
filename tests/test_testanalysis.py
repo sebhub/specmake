@@ -31,11 +31,11 @@ from specitems import EmptyItem
 
 from specmake.testaggregator import (TestAggregator, _judge,
                                      _update_measurement_status)
-from specmake.testanalysis import (ConfigRef, Expectation, LimitCheck,
-                                   TestAnalysis, TestCheck,
+from specmake.testanalysis import (ELF_NOTE, ConfigRef, Expectation,
+                                   LimitCheck, TestAnalysis, TestCheck,
                                    check_runtime_limits, expect,
                                    get_count_errors, get_outcome_errors,
-                                   get_test_state)
+                                   get_test_state, _Analyser)
 
 from .util import create_package
 
@@ -217,3 +217,180 @@ def test_testanalysis(caplog, tmpdir):
     info = analysis.get_info_checks(suite_data["report"])
     assert info.begin is not None
     assert info.end is None
+
+
+def _analyser(enabled_set):
+    properties = [{
+        "key": "rtems-commit",
+        "property-name": "RTEMS Commit",
+        "type": "rtems-version",
+        "expected": "abc"
+    }, {
+        "key": "compiler-version",
+        "property-name": "Compiler",
+        "type": "string",
+        "expected": "15.2.0"
+    }]
+    aggregator = SimpleNamespace(
+        item=SimpleNamespace(cache={}),
+        enabled_set=enabled_set,
+        component={
+            "arch": "sparc",
+            "bsp": "gr740"
+        },
+        input_links=lambda role: [(SimpleNamespace(data=data), None)
+                                  for data in properties],
+        substitute=lambda data: data)
+    analyser = _Analyser(aggregator)
+    analyser.target_uid = "/t"
+    analyser.item_uid = "/p"
+    analyser.config_data = {"config-key": "k", "build-label": "L"}
+    return analyser
+
+
+_NOTES = {
+    "version": "6.0.0.abc",
+    "build": "RTEMS_DEBUG RTEMS_SMP",
+    "tools": "15.2.0",
+    "bsp": "sparc/gr740",
+    "build-label": "L",
+    "test-state": "EXPECTED_PASS"
+}
+
+_COMPLETE = {"line-begin-of-test": 0, "line-end-of-test": 9}
+
+
+def _failures(analyser):
+    return sorted(reason
+                  for groups in analyser.analysis.unexpected_failures.get(
+                      "/t", {}).values() for reasons in groups.values()
+                  for reason in reasons)
+
+
+def test_check_test_info_with_elf_notes():
+    analyser = _analyser({"RTEMS_DEBUG", "RTEMS_SMP"})
+    report = {"info": dict(_COMPLETE), "elf-notes": dict(_NOTES)}
+    analyser.check_test_info(report)
+    checks = analyser.analysis.get_info_checks(report).checks
+    assert [
+        (check.key, check.name, check.line, check.reported, check.ok)
+        for check in checks
+    ] == [("version", "RTEMS Commit", ELF_NOTE, "abc", True),
+          ("build", "RTEMS_DEBUG", ELF_NOTE, "listed", True),
+          ("build", "RTEMS_MULTIPROCESSING", ELF_NOTE, "not listed", True),
+          ("build", "RTEMS_PARAVIRT", ELF_NOTE, "not listed", True),
+          ("build", "RTEMS_POSIX_API", ELF_NOTE, "not listed", True),
+          ("build", "RTEMS_PROFILING", ELF_NOTE, "not listed", True),
+          ("build", "RTEMS_SMP", ELF_NOTE, "listed", True),
+          ("tools", "Compiler", ELF_NOTE, "15.2.0", True)]
+    assert _failures(analyser) == []
+
+    # A wrong note is an unexpected failure
+    analyser = _analyser({"RTEMS_SMP"})
+    analyser.check_test_info(report)
+    assert _failures(analyser) == [
+        "At least one build configuration option has not the expected value "
+        "or the build configuration information is not present."
+    ]
+
+    # With a note and an output line, both are checked
+    analyser = _analyser({"RTEMS_DEBUG", "RTEMS_SMP"})
+    report = {
+        "info": dict(_COMPLETE, **{
+            "version": "6.0.0.abd",
+            "line-version": 2
+        }),
+        "elf-notes": dict(_NOTES)
+    }
+    analyser.check_test_info(report)
+    versions = [(check.line, check.ok)
+                for check in analyser.analysis.get_info_checks(report).checks
+                if check.key == "version"]
+    assert versions == [(ELF_NOTE, True), (2, False)]
+    assert _failures(analyser) == [
+        "The RTEMS Git commit has not the expected value."
+    ]
+
+    # Conflicting notes are an unexpected failure
+    analyser = _analyser({"RTEMS_DEBUG", "RTEMS_SMP"})
+    analyser.check_test_info({
+        "info":
+        dict(_COMPLETE),
+        "elf-notes":
+        dict(_NOTES, conflicts=[{
+            "type": 1,
+            "desc": "6.0.0.abd"
+        }])
+    })
+    assert _failures(analyser) == [
+        "The executable has two ELF notes of one type with different values."
+    ]
+
+    # Without a note and without an output line, the value is missing
+    analyser = _analyser(set())
+    analyser.check_test_info({"info": dict(_COMPLETE)})
+    assert "The RTEMS Git commit has not the expected value." in _failures(
+        analyser)
+
+
+def test_check_test_suite_with_elf_notes():
+    analyser = _analyser({"RTEMS_DEBUG", "RTEMS_SMP"})
+    analyser.target_hashes = ["h"]
+    suite_data = {
+        "report": {
+            "info": dict(_COMPLETE),
+            "elf-notes": dict(_NOTES),
+            "test-suite": {
+                "step-count": 3,
+                "line-step-count": 5,
+                "failed-steps-count": 0,
+                "line-failed-steps-count": 6,
+                "duration": 0.1,
+                "line-duration": 6,
+                "target-hash": "h",
+                "line-target-hash": 4,
+                "report-hash": "r",
+                "line-report-hash": 7,
+                "report-hash-calculated": "r"
+            }
+        }
+    }
+    analyser.check_test_suite(suite_data)
+    checks = {
+        (check.key, check.name): check
+        for check in analyser.analysis.get_checks(suite_data)
+    }
+    assert checks[("bsp", "BSP")] == TestCheck("bsp", "BSP", ELF_NOTE,
+                                               "sparc/gr740", "sparc/gr740",
+                                               True)
+    assert checks[("build-label", "Build Label")].line == ELF_NOTE
+    assert checks[("compiler", "Compiler")].line == ELF_NOTE
+    assert checks[("version", "RTEMS Commit")].line == ELF_NOTE
+    assert checks[("rtems-smp",
+                   "RTEMS_SMP")] == TestCheck("rtems-smp", "RTEMS_SMP",
+                                              ELF_NOTE, "1", "1", True)
+    assert checks[("rtems-profiling",
+                   "RTEMS_PROFILING")] == TestCheck("rtems-profiling",
+                                                    "RTEMS_PROFILING",
+                                                    ELF_NOTE, "0", "0", True)
+    assert checks[("target-hash", "Target Hash")].line == 4
+    assert _failures(analyser) == []
+
+
+def test_test_state_of_elf_note():
+    assert get_test_state({
+        "info": {
+            "state": "PASS"
+        },
+        "elf-notes": {
+            "test-state": "EXPECTED_FAIL"
+        }
+    }) == "EXPECTED_FAIL"
+    assert get_test_state({
+        "info": {
+            "state": "PASS"
+        },
+        "elf-notes": {
+            "version": "v"
+        }
+    }) == "PASS"

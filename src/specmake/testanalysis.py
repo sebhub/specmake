@@ -41,6 +41,8 @@ VERDICTS = ("passed", "expected-failures", "unexpected-failures",
             "unexpected-passes")
 
 ERRORS = {
+    "conflicting-elf-notes":
+    "The executable has two ELF notes of one type with different values.",
     "no-begin-of-test-message":
     "The test output contains no begin of test message.",
     "no-end-of-test-message":
@@ -319,8 +321,16 @@ def get_count_errors(data: dict) -> list[str]:
 
 
 def get_test_state(report: dict) -> str:
-    """ Get the state which the test program reports. """
-    return report.get("info", {}).get("state", "").strip()
+    """
+    Get the state of the test program.
+
+    The state of the ELF note takes precedence over the state of the test
+    output.
+    """
+    state = report.get("elf-notes", {}).get("test-state", None)
+    if state is None:
+        state = report.get("info", {}).get("state", "")
+    return state.strip()
 
 
 class Expectation(NamedTuple):
@@ -382,6 +392,24 @@ def _is_duration(_expected: str, reported: Any) -> bool:
     return reported != "?"
 
 
+# The location of a check of a value which an ELF note reports
+ELF_NOTE = "ELF note"
+
+
+class _NoteCheck(NamedTuple):
+    key: str
+    expected: str | None = None
+    transform: Callable[[Any], Any] = _same
+
+
+def _note_option(option: str, value: str) -> str:
+    return _listed(option in value.split())
+
+
+def _note_zero_one(option: str, value: str) -> str:
+    return _zero_one(option in value.split())
+
+
 class _TestProperty(NamedTuple):
     name: str
     type: str
@@ -397,6 +425,8 @@ class _Analyser:
         self.cache = aggregator.item.cache
         self.enabled_set = aggregator.enabled_set
         self.bsp: str = aggregator.component["bsp"]
+        self.arch_bsp = f"{aggregator.component['arch']}/{self.bsp}"
+        self.notes: dict[str, Any] = {}
         self.properties: dict[str, _TestProperty] = {}
         for link, _ in aggregator.input_links("test-property"):
             data = aggregator.substitute(link.data)
@@ -439,8 +469,26 @@ class _Analyser:
               key: str,
               expected: str,
               transform: Callable[[Any], Any] = _same,
-              is_ok: Callable[[str, Any], bool] = _is_equal) -> None:
-        """ Check the reported value. """
+              is_ok: Callable[[str, Any], bool] = _is_equal,
+              note: _NoteCheck | None = None) -> None:
+        """
+        Check the reported value.
+
+        If the ELF notes of the executable have a value for the note check,
+        then the value of the note is checked.  The output line is checked if
+        it is present or if there is no note.
+        """
+        if note is not None and note.key in self.notes:
+            note_expected = expected if note.expected is None else \
+                note.expected
+            reported = note.transform(self.notes[note.key])
+            ok = is_ok(note_expected, reported)
+            if not ok:
+                self.add_error(f"unexpected-{key}")
+            checks.append(
+                TestCheck(key, name, ELF_NOTE, reported, note_expected, ok))
+            if f"line-{key}" not in info:
+                return
         try:
             line = info[f"line-{key}"]
         except KeyError:
@@ -455,11 +503,17 @@ class _Analyser:
         checks.append(TestCheck(key, name, line, reported, expected, ok))
 
     def check_property(self, checks: list[TestCheck], info: dict, key: str,
-                       property_key: str) -> None:
+                       property_key: str, note_key: str) -> None:
         """ Check the reported value against the test property. """
         prop = self.properties[property_key]
-        self.check(checks, info, prop.name, key, prop.expected,
-                   _PROPERTY_TRANSFORM.get(prop.type, _same))
+        transform = _PROPERTY_TRANSFORM.get(prop.type, _same)
+        self.check(checks,
+                   info,
+                   prop.name,
+                   key,
+                   prop.expected,
+                   transform,
+                   note=_NoteCheck(note_key, transform=transform))
 
     def is_target_hash(self, _expected: str, reported: Any) -> bool:
         """ Check the target hash. """
@@ -468,19 +522,28 @@ class _Analyser:
     def check_test_info(self, report: dict) -> None:
         """ Check the test information of the report. """
         info = report["info"]
+        self.notes = report.get("elf-notes", {})
         for error in get_outcome_errors(report):
             self.add_error(error)
+        if self.notes.get("conflicts", []):
+            self.add_error("conflicting-elf-notes")
         begin = info.get("line-begin-of-test", None)
         end = info.get("line-end-of-test", None)
         checks: list[TestCheck] = []
-        self.check_property(checks, info, "version", "rtems-commit")
+        self.check_property(checks, info, "version", "rtems-commit", "version")
         for option in ("RTEMS_DEBUG", "RTEMS_MULTIPROCESSING",
                        "RTEMS_PARAVIRT", "RTEMS_POSIX_API", "RTEMS_PROFILING",
                        "RTEMS_SMP"):
-            self.check(checks, info, option, "build",
+            self.check(checks,
+                       info,
+                       option,
+                       "build",
                        _listed(option in self.enabled_set),
-                       functools.partial(_option, option))
-        self.check_property(checks, info, "tools", "compiler-version")
+                       functools.partial(_option, option),
+                       note=_NoteCheck("build",
+                                       transform=functools.partial(
+                                           _note_option, option)))
+        self.check_property(checks, info, "tools", "compiler-version", "tools")
         self.analysis.info_checks_by_id[id(report)] = InfoChecks(
             begin, end, checks)
 
@@ -495,21 +558,40 @@ class _Analyser:
 
     def check_test_suite(self, suite_data: dict) -> None:
         """ Check the test suite information. """
-        info = suite_data["report"]["test-suite"]
+        report = suite_data["report"]
+        info = report["test-suite"]
+        self.notes = report.get("elf-notes", {})
         checks: list[TestCheck] = []
-        self.check_property(checks, info, "compiler", "compiler-version")
-        self.check_property(checks, info, "version", "rtems-commit")
-        self.check(checks, info, "BSP", "bsp", self.bsp)
-        self.check(checks, info, "Build Label", "build-label",
-                   self.config_data["build-label"])
+        self.check_property(checks, info, "compiler", "compiler-version",
+                            "tools")
+        self.check_property(checks, info, "version", "rtems-commit", "version")
+        self.check(checks,
+                   info,
+                   "BSP",
+                   "bsp",
+                   self.bsp,
+                   note=_NoteCheck("bsp", self.arch_bsp))
+        self.check(checks,
+                   info,
+                   "Build Label",
+                   "build-label",
+                   self.config_data["build-label"],
+                   note=_NoteCheck("build-label"))
         self.check(checks, info, "Target Hash", "target-hash",
                    ", ".join(self.target_hashes), _same, self.is_target_hash)
         for option in ("debug", "multiprocessing", "posix-api", "profiling",
                        "smp"):
             key = f"rtems-{option}"
             name = key.replace("-", "_").upper()
-            self.check(checks, info, name, key,
-                       _zero_one(name in self.enabled_set), _zero_one)
+            self.check(checks,
+                       info,
+                       name,
+                       key,
+                       _zero_one(name in self.enabled_set),
+                       _zero_one,
+                       note=_NoteCheck("build",
+                                       transform=functools.partial(
+                                           _note_zero_one, name)))
         self.check_counts(checks, info)
         self.check(checks, info, "Report Hash", "report-hash",
                    info["report-hash-calculated"])

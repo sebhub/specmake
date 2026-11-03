@@ -33,6 +33,7 @@ from specitems import (Item, ItemGetValueContext, SphinxContent,
                        base64_to_hex_text)
 
 from .docbuilder import DocumentBuilder
+from .executablerecord import RTEMS_NOTE_KEYS
 from .pkgitems import BuildItemMapper, PackageBuildDirector
 from .perfimages import environment_order
 from .testaggregator import TestAggregator
@@ -61,6 +62,15 @@ _INVISIBLE_KEYS = frozenset(
     ("bsp", "build-label", "compiler", "report-hash", "tools", "version"))
 
 _HEADER = ["Property", "Line", "Reported", "Expected", "Status"]
+
+_NOTE_NAMES = {
+    "version": "Version",
+    "build": "Build Options",
+    "tools": "Tools",
+    "bsp": "BSP",
+    "build-label": "Build Label",
+    "test-state": "Test State"
+}
 
 _WIDTHS = [42, 8, 20, 20, 10]
 
@@ -150,16 +160,54 @@ class _TestContext:
         """ Begins the report. """
         self.output_label = f"{self.content.get_label()}Output"
         executable = os.path.basename(report["executable"])
-        self.content.add(f"""This report was produced by the
+        sha512 = report["executable-sha512"]
+        run_sha512 = report.get("run-executable-sha512", sha512)
+        if run_sha512 == sha512:
+            self.content.add(f"""This report was produced by the
 :file:`{executable}`
 executable.  The executable file had an SHA512 digest of
-{base64_to_hex_text(report['executable-sha512'])}.""")
+{base64_to_hex_text(sha512)}.""")
+        else:
+            self.content.add(f"""This report belongs to the
+:file:`{executable}`
+executable.  The executable file had an SHA512 digest of
+{base64_to_hex_text(sha512)}.  The output was produced by an executable file
+with an SHA512 digest of {base64_to_hex_text(run_sha512)}.""")
+            loadable = report.get("loadable-sha512", None)
+            if loadable is not None:
+                self.content.gap = False
+                self.content.add(f"""Both files load the image with an SHA512
+digest of {base64_to_hex_text(loadable)}.""")
+        notes = report.get("elf-notes", None)
+        if notes is not None:
+            self.add_elf_notes(notes)
         error = report.get("error")
         if error:
             with self.content.directive("error", value="Test runner error"):
                 self.content.add(error)
         else:
             self.content.gap = False
+
+    def add_elf_notes(self, notes: dict) -> None:
+        """ Add a table of the ELF notes to the content. """
+        self.content.wrap("The executable file has the following ELF notes.")
+        rows = [["Note", "Type", "Value"]]
+        for note_type, key in RTEMS_NOTE_KEYS.items():
+            if key in notes:
+                rows.append([
+                    _NOTE_NAMES[key],
+                    str(note_type),
+                    _invisible_spaces(notes[key]) or "\u200b"
+                ])
+        for kind, name in (("conflicts", "Conflicting note"),
+                           ("unknown", "Unknown note")):
+            for note in notes.get(kind, []):
+                rows.append([
+                    name,
+                    str(note["type"]),
+                    _invisible_spaces(note["desc"]) or "\u200b"
+                ])
+        self.add_table(rows, [20, 8, 72])
 
     def output_line_ref(self, line: int | str) -> str:
         """ Gets the output line reference for the line. """

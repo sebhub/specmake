@@ -24,11 +24,14 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import base64
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from specmake.testanalysis import TestAnalysis, _Analyser
+from specmake.testreporter import _TestContext
 
 from .util import create_package, get_document_text
 
@@ -2322,3 +2325,70 @@ def test_testreporter_test_property(caplog, tmpdir):
                                  ["test-report-test-property"])
         package.director.build_package(
             only=["/pkg/deployment/doc-djf-tr-test-property"])
+
+
+def _digest(value):
+    return base64.urlsafe_b64encode(bytes([value]) * 64).decode("ascii")
+
+
+def _hex(value):
+    return "​".join(f"{value:02x}" * 64)
+
+
+def _report_head(report):
+    reporter = SimpleNamespace(mapper=SimpleNamespace(context=None),
+                               item=SimpleNamespace(cache={}))
+    ctx = _TestContext(reporter, TestAnalysis())
+    ctx.begin_report(report)
+    return ctx.content.join()
+
+
+def test_report_head_of_a_reused_output():
+    text = _report_head({
+        "executable": "/x/a.exe",
+        "executable-sha512": _digest(1),
+        "run-executable-sha512": _digest(2),
+        "loadable-sha512": _digest(3),
+        "elf-notes": {
+            "version": "6",
+            "build": "",
+            "conflicts": [{
+                "type": 1,
+                "desc": "7"
+            }],
+            "unknown": [{
+                "type": 9,
+                "desc": "x"
+            }]
+        }
+    })
+    assert text.startswith(f"""This report belongs to the
+:file:`a.exe`
+executable.  The executable file had an SHA512 digest of
+{_hex(1)}.  The output was produced by an executable file
+with an SHA512 digest of {_hex(2)}.
+Both files load the image with an SHA512
+digest of {_hex(3)}.
+
+The executable file has the following ELF notes.
+""")
+    assert "| Version          | 1    | 6     |" in text
+    assert "| Build Options    | 2    | ​     |" in text
+    assert "| Conflicting note | 1    | 7     |" in text
+    assert "| Unknown note     | 9    | x     |" in text
+
+
+def test_report_head_of_a_file_reuse():
+    text = _report_head({
+        "executable": "/x/a.exe",
+        "executable-sha512": _digest(1),
+        "run-executable-sha512": _digest(2)
+    })
+    assert "Both files load" not in text
+    assert text.endswith(f"with an SHA512 digest of {_hex(2)}.")
+    text = _report_head({
+        "executable": "/x/a.exe",
+        "executable-sha512": _digest(1),
+        "run-executable-sha512": _digest(1)
+    })
+    assert text.startswith("This report was produced by the")
