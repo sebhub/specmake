@@ -32,6 +32,7 @@ from .dirstatebase import *  # noqa: F401, F403
 from .directorystate import *  # noqa: F401, F403
 from .doxyfile import *  # noqa: F401, F403
 from .elf import *  # noqa: F401, F403
+from .executablerecord import *  # noqa: F401, F403
 from .gcdaproducer import *  # noqa: F401, F403
 from .icdbuilder import *  # noqa: F401, F403
 from .itemcachestate import *  # noqa: F401, F403

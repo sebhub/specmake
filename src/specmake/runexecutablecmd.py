@@ -24,12 +24,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import inspect
 import logging
 import os
 import stat
 import subprocess
 
 from .directorystate import DirectoryState
+from .elf import ELF_SCRIPT_FUNCTIONS
+from .executablerecord import REUSE_SCRIPT_FUNCTIONS
 from .pkgitems import Redirection
 from .testrunner import TestLog, TestRunner
 
@@ -65,6 +68,7 @@ import base64
 import json
 import hashlib
 import os
+import struct
 import subprocess
 import sys
 """
@@ -80,6 +84,13 @@ _COMMAND_TAIL = """def _hash_file(path: str) -> str:
             for size in iter(lambda: src.readinto(memview), 0):  # type: ignore
                 file_hash.update(memview[:size])
     return base64.urlsafe_b64encode(file_hash.digest()).decode("ascii")
+
+
+def _loadable_sha512(path: str) -> str | None:
+    if os.path.islink(path):
+        return None
+    with open(path, "rb") as src:
+        return elf_loadable_sha512(src.read())
 
 
 def main(script: str, argv: list[str]) -> int:
@@ -118,22 +129,24 @@ def main(script: str, argv: list[str]) -> int:
         command = _COMMANDS[target]
     except KeyError:
         command = _COMMANDS.get(f"{target}/{args.runner_type}", None)
-    reports_by_hash: dict = {}
+    reports: list = []
     if not args.do_not_use_test_logs:
         for test_log_file in _TEST_LOGS_BY_TARGET.get(target, []):
             path = test_log_file.replace("${package-directory}",
                                          args.package_directory)
             try:
                 with open(path, "r", encoding="utf-8") as file:
-                    for report in json.load(file)["reports"]:
-                        digest = report["executable-sha512"]
-                        if digest not in reports_by_hash:
-                            reports_by_hash[digest] = report["output"]
+                    reports.extend(json.load(file)["reports"])
             except FileNotFoundError:
                 pass
+    index = index_reports(reports)
     for executable in args.executables:
-        digest = _hash_file(executable)
-        report = reports_by_hash.get(digest, None)
+        try:
+            loadable_sha512 = _loadable_sha512(executable)
+        except ValueError as err:
+            print(f"{script}: {executable}: {err}", file=sys.stderr)
+            return 1
+        report = find_report(index, _hash_file(executable), loadable_sha512)
         if report is None:
             if command is None:
                 print(
@@ -151,7 +164,7 @@ def main(script: str, argv: list[str]) -> int:
             ]
             subprocess.run(command, check=True, stdin=subprocess.DEVNULL)
         else:
-            print("\\n".join(report))
+            print("\\n".join(report["output"]))
     return 0
 
 
@@ -210,6 +223,9 @@ class RunExecutableCommand(DirectoryState):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as file:
             file.write(_COMMAND_HEAD)
+            for function in ELF_SCRIPT_FUNCTIONS + REUSE_SCRIPT_FUNCTIONS:
+                file.write(f"\n\n{inspect.getsource(function)}")
+            file.write("\n\n")
             file.write(f"""_TARGETS_BY_BSP: dict[str, str] = {target_by_bsp}
 
 _TEST_LOGS_BY_TARGET: dict[str, str] = {test_logs_by_target}

@@ -40,6 +40,9 @@ from specitems import hash_file, is_enabled, load_data
 
 from .ctrf import (CTRF_FAILED, convert_test_log, ctrf_markdown_summary,
                    get_ctrf_tool_version)
+from .executablerecord import (ExecutableRecord, add_executable_record,
+                               find_report, index_reports,
+                               read_executable_record, reuse_report)
 from .runtests import (RunnerExecutable, RunnerReport, run_subprocess_tests,
                        run_tests_with_retries, select_command)
 from .testoutputparser import augment_report
@@ -274,24 +277,22 @@ def _did_not_run(path: str, digest: str) -> RunnerReport:
     return report
 
 
-def _get_previous_reports(path: str,
-                          runner_hash: str) -> dict[str, RunnerReport]:
+def _get_previous_reports(path: str, runner_hash: str) -> dict:
     """
-    Get the reusable reports of a previous test log by executable hash.
+    Get the index of the reusable reports of a previous test log.
 
     Reports of a test log produced by a different test runner are not reusable,
     otherwise a changed command would silently yield the results of the
     previous command.
     """
     if not path:
-        return {}
-    reports_by_hash: dict[str, RunnerReport] = {}
+        return index_reports([])
     try:
         with open(path, "r", encoding="utf-8") as src:
             test_log = json.load(src)
     except FileNotFoundError:
         logging.warning("%s: no test log to reuse: %s", _UID, path)
-        return reports_by_hash
+        return index_reports([])
     except json.JSONDecodeError as err:
         raise RunTestsError(
             f"the test log '{path}' to reuse is not valid JSON: {err}"
@@ -302,10 +303,8 @@ def _get_previous_reports(path: str,
             "%s: cannot reuse the reports of '%s', it used the test runner "
             "%s and this is the test runner %s", _UID, path, previous_hash[:16]
             or "?", runner_hash[:16])
-        return reports_by_hash
-    for report in test_log["reports"]:
-        reports_by_hash[report["executable-sha512"]] = report
-    return reports_by_hash
+        return index_reports([])
+    return index_reports(test_log["reports"])
 
 
 def _find_executables(directories: list[str]) -> list[str]:
@@ -328,10 +327,17 @@ def _find_executables(directories: list[str]) -> list[str]:
     return sorted(paths)
 
 
+def _read_record(path: str) -> ExecutableRecord:
+    try:
+        return read_executable_record(path, hash_file(path))
+    except ValueError as err:
+        raise RunTestsError(str(err)) from err
+
+
 def _gather(
-        args: argparse.Namespace, runner: _Data, timeouts: dict[str,
-                                                                list[float]],
-        runner_hash: str) -> tuple[list[RunnerReport], list[RunnerExecutable]]:
+    args: argparse.Namespace, runner: _Data, timeouts: dict[str, list[float]],
+    runner_hash: str, records: dict[str, ExecutableRecord]
+) -> tuple[list[RunnerReport], list[RunnerExecutable]]:
     """ Gather the reusable reports and the executables to run. """
     do_not_run = _get_do_not_run(runner)
     previous_reports = _get_previous_reports(args.reuse, runner_hash)
@@ -339,18 +345,22 @@ def _gather(
     executables: list[RunnerExecutable] = []
     for path in _find_executables(args.directories):
         name = os.path.basename(path)
-        digest = hash_file(path)
-        report = previous_reports.get(digest, None)
+        record = _read_record(path)
+        records[path] = record
+        report = find_report(previous_reports, record.sha512,
+                             record.loadable_sha512)
         if report is not None:
             logging.info("%s: use previous report for: %s", _UID, path)
-            report["executable"] = path
+            reuse_report(report, record)
             reports.append(report)
         elif name in do_not_run:
             logging.info("%s: do not run: %s", _UID, path)
-            reports.append(_did_not_run(path, digest))
+            report = _did_not_run(path, record.sha512)
+            add_executable_record(report, record)
+            reports.append(report)
         else:
             executables.append(
-                RunnerExecutable(path, digest,
+                RunnerExecutable(path, record.sha512,
                                  _get_timeout(runner, timeouts, name)))
     if not reports and not executables:
         directories = ", ".join(f"'{path}'" for path in args.directories)
@@ -358,6 +368,13 @@ def _gather(
             f"there is no test executable in {directories}; a report of no "
             "test at all would say that the tests passed")
     return reports, executables
+
+
+def _with_records(reports: list[RunnerReport],
+                  records: dict[str, ExecutableRecord]) -> list[RunnerReport]:
+    for report in reports:
+        add_executable_record(report, records[report["executable"]])
+    return reports
 
 
 def _runner_hash(command: list[str], substitutions: dict[str, str]) -> str:
@@ -403,11 +420,14 @@ def _run(args: argparse.Namespace) -> _Data:
     runner_hash = _runner_hash(command, substitutions)
     start_time = now_utc()
     begin = time.monotonic()
-    reports, executables = _gather(args, runner, timeouts, runner_hash)
+    records: dict[str, ExecutableRecord] = {}
+    reports, executables = _gather(args, runner, timeouts, runner_hash,
+                                   records)
     reports.extend(
-        run_tests_with_retries(executables, run_tests,
-                               runner["max-retry-count-per-executable"] + 1,
-                               _UID))
+        _with_records(
+            run_tests_with_retries(
+                executables, run_tests,
+                runner["max-retry-count-per-executable"] + 1, _UID), records))
     test_log: _Data = {
         "duration":
         time.monotonic() - begin,

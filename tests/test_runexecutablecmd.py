@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 """ Tests for the perfimages module. """
 
-# Copyright (C) 2025 embedded brains GmbH & Co. KG
+# Copyright (C) 2025, 2026 embedded brains GmbH & Co. KG
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,11 +24,16 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import json
 from pathlib import Path
+import subprocess
+import sys
 
-from specitems import Item
+from specitems import Item, hash_file
 
-from specmake import PackageBuildDirector, TestRunner
+from specmake import PackageBuildDirector, TestRunner, elf_loadable_sha512
+
+from .elfutil import Segment, build_elf
 
 from .util import create_package
 
@@ -58,43 +63,10 @@ def test_runexecutablecmd(caplog, tmpdir):
     director.factory.add_constructor("pkg/test-runner/test", _TestRunner)
     build_item = director["/pkg/deployment/run"]
     director.build_package(only=[build_item.uid])
-    with open(build_item.file, "r") as src:
-        assert src.read() == '''#!/usr/bin/env python3
-# SPDX-License-Identifier: BSD-2-Clause
-""" Runs the executable on the target. """
-
-# Copyright (C) 2024 embedded brains GmbH & Co. KG
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-
-import argparse
-import base64
-import json
-import hashlib
-import os
-import subprocess
-import sys
-
-_TARGETS_BY_BSP: dict[str, str] = {
+    with open(build_item.file, "r", encoding="utf-8") as src:
+        script = src.read()
+    assert script.startswith("#!/usr/bin/env python3\n")
+    assert """_TARGETS_BY_BSP: dict[str, str] = {
     'sparc-gr712rc-smp-extra': 'sparc/gr712rc/smp',
     'sparc-gr712rc-smp-qual-only': 'sparc/gr712rc/smp'
 }
@@ -104,94 +76,54 @@ _TEST_LOGS_BY_TARGET: dict[str, str] = {
 }
 
 _COMMANDS: dict[str, list[str]] = {'sparc/gr712rc/smp/one': ['$${executable}']}
+""" in script
+    _check_script(Path(build_item.file))
 
 
-def _hash_file(path: str) -> str:
-    file_hash = hashlib.sha512()
-    if os.path.islink(path):
-        file_hash.update(os.readlink(path).encode("utf-8"))
-    else:
-        buf = bytearray(65536)
-        memview = memoryview(buf)
-        with open(path, "rb", buffering=0) as src:
-            for size in iter(lambda: src.readinto(memview), 0):  # type: ignore
-                file_hash.update(memview[:size])
-    return base64.urlsafe_b64encode(file_hash.digest()).decode("ascii")
+def _run(script: Path, executable: Path) -> subprocess.CompletedProcess:
+    return subprocess.run([
+        sys.executable, "-I",
+        str(script), "sparc-gr712rc-smp-extra",
+        str(executable)
+    ],
+                          capture_output=True,
+                          text=True,
+                          check=False)
 
 
-def main(script: str, argv: list[str]) -> int:
-    """ Runs the executables on the target. """
-    package_directory = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), ".."))
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--runner-type",
-        default="simulator",
-        type=str,
-        help=f"the type of the executable runner (default: simulator)")
-    parser.add_argument(
-        "--package-directory",
-        default=package_directory,
-        type=str,
-        help=f"the package directory (default: {package_directory})")
-    parser.add_argument("--do-not-use-test-logs",
-                        action="store_true",
-                        help=f"do not use the test logs to look up a report")
-    parser.add_argument("target",
-                        metavar="TARGET",
-                        nargs=1,
-                        help="the target on which the executables should run; "
-                        "the target is the name of an installed BSP "
-                        f"(one of {list(_TARGETS_BY_BSP.keys())}) "
-                        f"or a runner (one of {list(_COMMANDS.keys())})")
-    parser.add_argument("executables",
-                        metavar="EXECUTABLES",
-                        nargs="+",
-                        help="the executable files to run")
-    args = parser.parse_args(argv)
-    target = args.target[0]
-    target = _TARGETS_BY_BSP.get(target, target)
-    try:
-        command = _COMMANDS[target]
-    except KeyError:
-        command = _COMMANDS.get(f"{target}/{args.runner_type}", None)
-    reports_by_hash: dict = {}
-    if not args.do_not_use_test_logs:
-        for test_log_file in _TEST_LOGS_BY_TARGET.get(target, []):
-            path = test_log_file.replace("${package-directory}",
-                                         args.package_directory)
-            try:
-                with open(path, "r", encoding="utf-8") as file:
-                    for report in json.load(file)["reports"]:
-                        digest = report["executable-sha512"]
-                        if digest not in reports_by_hash:
-                            reports_by_hash[digest] = report["output"]
-            except FileNotFoundError:
-                pass
-    for executable in args.executables:
-        digest = _hash_file(executable)
-        report = reports_by_hash.get(digest, None)
-        if report is None:
-            if command is None:
-                print(
-                    f"{script}: in your environment, "
-                    "there is no service available to run the executable "
-                    f"on the target '{target}'; "
-                    f"available runner targets are: {list(_COMMANDS.keys())} ",
-                    file=sys.stderr)
-                return 1
-            command = [
-                arg.replace("${executable}",
-                            executable).replace("${package-directory}",
-                                                args.package_directory)
-                for arg in command
-            ]
-            subprocess.run(command, check=True, stdin=subprocess.DEVNULL)
-        else:
-            print("\\n".join(report))
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[0], sys.argv[1:]))
-'''
+def _check_script(script: Path) -> None:
+    package_directory = script.parent.parent
+    segments = [Segment(0x1000, 0x1000, b"text")]
+    by_file = package_directory / "by-file.exe"
+    by_file.write_text("#!/bin/sh\n", encoding="utf-8")
+    run_elf = build_elf(1, ">", segments, debug=b"run")
+    rebuilt = package_directory / "rebuilt.exe"
+    rebuilt.write_bytes(build_elf(1, ">", segments, debug=b"rebuilt"))
+    other = package_directory / "other.exe"
+    other.write_bytes(build_elf(1, ">", [Segment(0x1000, 0x1000, b"else")]))
+    reports = [{
+        "executable-sha512": hash_file(str(by_file)),
+        "output": ["file", "digest"]
+    }, {
+        "executable-sha512": "run",
+        "loadable-sha512": elf_loadable_sha512(run_elf),
+        "output": ["loadable", "digest"]
+    }]
+    with open(package_directory / "test-log-bsp.json", "w",
+              encoding="utf-8") as dst:
+        json.dump({"reports": reports}, dst)
+    result = _run(script, by_file)
+    assert result.returncode == 0
+    assert result.stdout == "file\ndigest\n"
+    result = _run(script, rebuilt)
+    assert result.returncode == 0
+    assert result.stdout == "loadable\ndigest\n"
+    result = _run(script, other)
+    assert result.returncode == 1
+    assert "there is no service available" in result.stderr
+    broken = package_directory / "broken.exe"
+    broken.write_bytes(build_elf(1, ">", segments)[:40])
+    result = _run(script, broken)
+    assert result.returncode == 1
+    assert result.stderr == (f"{script}: {broken}: the ELF file is truncated "
+                             "in the ELF header\n")

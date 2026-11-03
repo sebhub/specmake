@@ -270,6 +270,10 @@ building the package and captures the output:
         len(report.get("failed-attempts", []))
         for report in test_log["reports"])
     assert failed_attempts == (2, 0, 0, 0)
+    for report in test_log["reports"]:
+        assert report["run-executable-sha512"] == report["executable-sha512"]
+        assert "loadable-sha512" not in report
+        assert "elf-notes" not in report
 
     test_log_file = tmp_dir / "pkg/test-log-bsp.json"
     test_log_file.unlink()

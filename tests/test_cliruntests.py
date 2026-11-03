@@ -35,6 +35,7 @@ import yaml
 from specmake.cliruntests import cliruntests
 
 from .ctrf import validate_ctrf_report
+from .elfutil import Note, NoteSection, Segment, build_elf
 
 _TESTS = Path(__file__).parent
 _RUNNER = str(_TESTS / "simulator-runner.yml")
@@ -453,3 +454,49 @@ def test_verbose_and_no_ctrf(tmp_path):
     ]
     assert cliruntests(argv) == 0
     assert (tmp_path / "sub" / "test-log.json").exists()
+
+
+def test_reuse_by_loadable_image(tmp_path):
+    directory = tmp_path / "tests"
+    directory.mkdir(parents=True)
+    segments = [Segment(0x1000, 0x1000, b"text")]
+    notes = [NoteSection([Note(b"RTEMS\0", 1, b"6.0.0.abc\0")])]
+    hello = directory / "hello.exe"
+    hello.write_bytes(
+        build_elf(1, "<", segments, note_sections=notes, debug=b"a"))
+    assert _run(tmp_path) == 0
+    previous = tmp_path / "previous.json"
+    os.replace(tmp_path / "test-log.json", previous)
+    first = _load(previous)["reports"][0]
+    assert first["run-executable-sha512"] == first["executable-sha512"]
+    assert first["elf-notes"] == {"version": "6.0.0.abc"}
+
+    # A relink which changes only the debug data and the notes keeps the
+    # loadable image, so the report is reused
+    notes = [NoteSection([Note(b"RTEMS\0", 1, b"6.0.0.def\0")])]
+    hello.write_bytes(
+        build_elf(1, "<", segments, note_sections=notes, debug=b"b"))
+    assert _run(tmp_path, "--reuse", str(previous)) == 0
+    second = _load(tmp_path / "test-log.json")["reports"][0]
+    assert second["start-time"] == first["start-time"]
+    assert second["executable-sha512"] != first["executable-sha512"]
+    assert second["loadable-sha512"] == first["loadable-sha512"]
+    assert second["run-executable-sha512"] == first["executable-sha512"]
+    assert second["elf-notes"] == {"version": "6.0.0.def"}
+
+    # A changed loadable image runs again
+    hello.write_bytes(build_elf(1, "<", [Segment(0x1000, 0x1000, b"else")]))
+    assert _run(tmp_path, "--reuse", str(previous)) == 0
+    third = _load(tmp_path / "test-log.json")["reports"][0]
+    assert third["run-executable-sha512"] == third["executable-sha512"]
+    assert "elf-notes" not in third
+
+
+def test_a_broken_elf_file_is_an_error(tmp_path, capsys):
+    directory = tmp_path / "tests"
+    directory.mkdir(parents=True)
+    (directory / "hello.exe").write_bytes(
+        build_elf(1, "<", [Segment(0x1000, 0x1000, b"text")])[:40])
+    assert _run(tmp_path) == 2
+    assert "the ELF file is truncated in the ELF header" in capsys.readouterr(
+    ).err

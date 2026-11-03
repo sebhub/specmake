@@ -36,6 +36,9 @@ from typing import Any
 from specitems import data_digest, is_enabled, Item, ItemGetValueContext
 
 from .directorystate import DirectoryState
+from .executablerecord import (ExecutableRecord, add_executable_record,
+                               find_report, index_reports,
+                               read_executable_record, reuse_report)
 from .pkgitems import BuildItem, PackageBuildDirector
 from .runtests import (RunnerExecutable, RunnerReport, run_subprocess_tests,
                        run_tests_with_retries, select_command)
@@ -92,11 +95,13 @@ def do_not_run_names(groups: list[dict[str, Any]]) -> set[str]:
 class TestLog(DirectoryState):
     """ Maintains a test log. """
 
-    def get_reports_by_hash(self) -> tuple[dict[str, RunnerReport], str, str]:
+    def get_reports_index(self) -> tuple[dict, str, str]:
         """
-        Get the reports by executable hash and the test runner description.
+        Get the index of the reports and the test runner description.
+
+        The index is the one of index_reports().
         """
-        reports_by_hash: dict[str, RunnerReport] = {}
+        reports: list[RunnerReport] = []
         description = "There is no description available."
         runner_hash = ""
         try:
@@ -104,14 +109,10 @@ class TestLog(DirectoryState):
                 data = json.load(src)
                 description = data.get("test-runner-description", description)
                 runner_hash = data.get("test-runner-hash", runner_hash)
-                for report in data["reports"]:
-                    digest = report["executable-sha512"]
-                    assert digest not in reports_by_hash
-                    assert isinstance(digest, str)
-                    reports_by_hash[digest] = report
+                reports = data["reports"]
         except FileNotFoundError:
             pass
-        return reports_by_hash, description, runner_hash
+        return index_reports(reports), description, runner_hash
 
 
 class TestRunner(BuildItem):
@@ -122,6 +123,7 @@ class TestRunner(BuildItem):
         self._executable = "/dev/null"
         self._executables: list[RunnerExecutable] = []
         self._do_not_run_groups: list[dict[str, Any]] = []
+        self._records: dict[str, ExecutableRecord] = {}
         self.mapper.add_get_value(f"{self.item.type}:/test-executable",
                                   self._get_test_executable)
 
@@ -178,8 +180,7 @@ class TestRunner(BuildItem):
             f"in {config['test-timeout-key']}")
 
     def _get_reports_and_executables(
-            self, target: Item, previous_reports_by_hash: dict[str,
-                                                               RunnerReport],
+            self, target: Item, previous_reports: dict,
             report_runner_hash: str, timeout_key: str
     ) -> tuple[list[RunnerReport], list[RunnerExecutable]]:
         # pylint: disable=too-many-locals
@@ -203,17 +204,22 @@ class TestRunner(BuildItem):
                 continue
             assert digest
             name = Path(path).name
+            record = read_executable_record(path, digest)
+            self._records[path] = record
 
-            # Use previous report if the executable hash did not change.  Reuse
-            # also reports which contain an "error" attribute to avoid running
-            # them in CI jobs.  Resolving failed tests is a manual activity.
-            report = previous_reports_by_hash.get(digest, None)
+            # Use a previous report of the same loadable image or of the same
+            # executable file.  Reuse also reports which contain an "error"
+            # attribute to avoid running them in CI jobs.  Resolving failed
+            # tests is a manual activity.
+            report = find_report(previous_reports, digest,
+                                 record.loadable_sha512)
             if report is None or cannot_reuse_reports:
                 if name in do_not_run:
                     logging.info("%s: do not run: %s", self.uid, path)
                     report = TestRunner.run_tests(
                         self, [RunnerExecutable(path, digest, 0.0)])[0]
                     report["do-not-run"] = True
+                    add_executable_record(report, record)
                     augment_report(report, report["output"])
                     reports.append(report)
                 else:
@@ -227,7 +233,7 @@ class TestRunner(BuildItem):
                     executables.append(RunnerExecutable(path, digest, timeout))
             else:
                 logging.info("%s: use previous report for: %s", self.uid, path)
-                report["executable"] = path
+                reuse_report(report, record)
                 reports.append(report)
         return reports, executables
 
@@ -240,15 +246,19 @@ class TestRunner(BuildItem):
         assert target.uid == self.input("target").uid
         config_key, timeout_key = self._get_config_and_timeout_keys()
         self._do_not_run_groups = gather_do_not_run(self.item)
-        (reports_by_hash, description,
-         report_runner_hash) = log.get_reports_by_hash()
+        (previous_reports, description,
+         report_runner_hash) = log.get_reports_index()
+        self._records = {}
         reports, executables = self._get_reports_and_executables(
-            target, reports_by_hash, report_runner_hash, timeout_key)
+            target, previous_reports, report_runner_hash, timeout_key)
 
         # Run the tests with changed executable hashes
         if executables:
             description = self.describe()
-            reports.extend(self._run_tests(executables))
+            for report in self._run_tests(executables):
+                add_executable_record(report,
+                                      self._records[report["executable"]])
+                reports.append(report)
 
         # Save the reports
         os.makedirs(os.path.dirname(log.file), exist_ok=True)
