@@ -2419,7 +2419,7 @@ wheels = [
 
 [[package]]
 name = "specitems"
-version = "1.7.13"
+version = "1.7.14"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "license-expression" },
@@ -2431,9 +2431,9 @@ dependencies = [
     { name = "mdformat-tables" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/14/c1/297e35f2709e38e62538ad1bfab6801658ce51da1d1025577ba55f888fa8/specitems-1.7.13.tar.gz", hash = "sha256:d849e159a50f3d80c6482cd4695d52b6e7c34fa7bfc3da36b7ffc054395c8aa2", size = 89022, upload-time = "2026-10-28T07:29:51.363Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fa/8d/07c538034ac820b682e4315d597cbf22e29113e7263007aa80c66c31c8da/specitems-1.7.14.tar.gz", hash = "sha256:3f7e0061a1232054d5e5c26506583c9242165c28694354cb63d7188f93ea9d3c", size = 89706, upload-time = "2026-11-03T11:06:35.882Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e9/91/feb9e7d3eebff7fb83ac059a80d32ee3e33d0fefe8942896824beb9a0b2e/specitems-1.7.13-py3-none-any.whl", hash = "sha256:222f470619c8b53573cbeade30240dbf8523e9bf5eb3c14512e168db650a6b48", size = 121324, upload-time = "2026-10-28T07:29:50.275Z" },
+    { url = "https://files.pythonhosted.org/packages/19/4d/b58837ca922cea2a28b161d66177160e6567fa4e0518edc62863ae54ae71/specitems-1.7.14-py3-none-any.whl", hash = "sha256:255d62679dd84f70b25b5e69a76c2453372d159b06e08077ee6ccd19b55f8db4", size = 122011, upload-time = "2026-11-03T11:06:34.714Z" },
 ]
 
 [[package]]
@@ -2486,7 +2486,7 @@ requires-dist = [
     { name = "git-filter-repo", specifier = ">=2.47.0" },
     { name = "matplotlib", specifier = ">=3.10.1" },
     { name = "spectestrunner", specifier = ">=0.9.6" },
-    { name = "specware", specifier = ">=1.3.27" },
+    { name = "specware", specifier = ">=1.3.28" },
     { name = "sphinx", specifier = ">=8.2.3" },
     { name = "sphinx-better-subsection", specifier = ">=0.2" },
     { name = "sphinx-rtd-theme", specifier = ">=3.0.2" },
@@ -2535,14 +2535,14 @@ wheels = [
 
 [[package]]
 name = "specware"
-version = "1.3.27"
+version = "1.3.28"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "specitems" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/c8/6df97408bf1d60d808e475f9387e680777847c8153ac225ed004b53f66a5/specware-1.3.27.tar.gz", hash = "sha256:683974dbfd8bd3fbdfc6aecd4339c5004eaffe4f1e88cd87fcd629ba77200676", size = 114079, upload-time = "2026-11-03T00:56:32.272Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/2b/828421ea6d1cc2123603762cfef966e53323296059a3a1998aed02f9756a/specware-1.3.28.tar.gz", hash = "sha256:d0953fce9edc8caf0bec19d849aa11c5f5a83c339b2e13a756b895ffe827c232", size = 114097, upload-time = "2026-11-03T11:08:34.142Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/2d/e8dfc2ac160a412b463a88e80a7a1609bb8a09af6254e912056eff4f7665/specware-1.3.27-py3-none-any.whl", hash = "sha256:929a665ed6ec799fe30a85ad681779099fb137d2061b88066223556b29f8127f", size = 131776, upload-time = "2026-11-03T00:56:30.937Z" },
+    { url = "https://files.pythonhosted.org/packages/80/1a/6d478b14ceae3a753fb810e3a20085cb9a39595a98c9f14c890515a2e62c/specware-1.3.28-py3-none-any.whl", hash = "sha256:65f13ebc40e12c6e5bf0a8047864486756af5099e2e87fcfe722cf12e6519891", size = 131776, upload-time = "2026-11-03T11:08:32.993Z" },
 ]
 
 [[package]]
@@ -2835,11 +2835,11 @@ wheels = [
 
 [[package]]
 name = "types-pyyaml"
-version = "6.0.12.20261030"
+version = "6.0.12.20261103"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c7/0c/72b85bc2e3a3cf23419a7f8861c1855893f02080e202b631e33cc0d1a94a/types_pyyaml-6.0.12.20261030.tar.gz", hash = "sha256:9123d707aa31a3883eeb2cb290537c75246dfcb1c00abed7a70f5419d3bd31ae", size = 18878, upload-time = "2026-10-30T07:50:19.43Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/82/2ed4d215a2840b467a9a864f03b0d21904250e28f5e1f006ad36fba0311a/types_pyyaml-6.0.12.20261103.tar.gz", hash = "sha256:7a1b5f837881dd35d5448b5f18275164f89f206185e31e8eae6e0b42607bc001", size = 18911, upload-time = "2026-11-03T08:45:23.714Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/34/99/7e2c7c7202108220fb664ce4c5ac313a564ab5babb153516a3ac0ad8a681/types_pyyaml-6.0.12.20261030-py3-none-any.whl", hash = "sha256:508cc80546918201026a955356222111224e1f4f7deab0b91f2a95933f764e67", size = 21283, upload-time = "2026-10-30T07:50:18.389Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/10/4353eb86278f6a59aeb9fe2be4d979c20b110b4009fa455a3ea6467cf5cb/types_pyyaml-6.0.12.20261103-py3-none-any.whl", hash = "sha256:444654c61f635dab82c092a511aa96a0ce31164810784b9a37314e3e56532ac8", size = 21299, upload-time = "2026-11-03T08:45:22.749Z" },
 ]
 
 [[package]]
