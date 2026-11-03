@@ -442,8 +442,7 @@ class WorkspaceRedirect(_WorkspaceItem):
         item = self.item
         data = load_data(self["source"])
         data["links"][:0] = self.item["links"]
-        item.cache.remove_item(item.uid)
-        self.item = item.cache.add_item(item.uid, data)
+        self.item = item.cache.replace_item(item.uid, data)
         redirect = self.director.factory.create(self.director, self.item)
         if isinstance(redirect, _WorkspaceItem):
             self.redirect = redirect

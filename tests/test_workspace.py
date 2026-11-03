@@ -222,6 +222,25 @@ def test_workspace_redirect(tmpdir):
     ]
 
 
+def test_workspace_redirect_children(tmpdir):
+    workspace = _create_workspace(tmpdir, "spec-pkg-wk/redirect")
+    child = workspace.cache.add_item(
+        "/child", {
+            "enabled-by": True,
+            "links": [{
+                "role": "child",
+                "uid": "/redirect"
+            }]
+        },
+        set_types=False)
+    redirect = workspace.director["/redirect"]
+    with redirect.scope():
+        redirect.load_workspace_state()
+    item = workspace.cache["/redirect"]
+    assert child.parent("child") is item
+    assert item.child("child") is child
+
+
 def test_workspace_repo_clone_workaround(tmpdir, monkeypatch):
 
     def _run_command(args, cwd=None, stdout=None, status=None):
