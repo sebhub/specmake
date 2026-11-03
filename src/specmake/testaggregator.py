@@ -146,41 +146,48 @@ def _gather_test_error_verifications(item: Item,
         verifications[item_2.uid] = item.uid
 
 
-def _gather_coverage_gap_verifications(
-        uid: str, target: Item,
+def _gather_gap_areas(
+        uid: str, target_uid: str, child: Item,
         verifications: dict[str, _FileToSpotJustification]) -> None:
+    for scope_name, scope in child["areas"].items():
+        for file_path, file in scope.items():
+            logging.info(
+                "%s: for target %s gather code coverage gap "
+                "verifications from %s for file: %s", uid, target_uid,
+                child.uid, file_path)
+            gaps: _SpotToJustification = {}
+            for line in file["lines"]:
+                line_number = line["line"]
+                logging.info("%s: add line coverage gap justification at %s",
+                             uid, line_number)
+                gaps[f"line/{line_number}"] = child.uid, line["md5"]
+            for branches in file["branches"]:
+                line_number = branches["line"]
+                for branch in branches["branches"]:
+                    line_branch = f"{line_number}/{branch}"
+                    logging.info(
+                        "%s: add branch coverage gap justification at %s", uid,
+                        line_branch)
+                    gaps[f"branch/{line_branch}"] = child.uid, branches["md5"]
+            for function_name in file["functions"]:
+                logging.info(
+                    "%s: add function coverage gap justification for %s()",
+                    uid, function_name)
+                gaps[f"function/{function_name}"] = child.uid, ""
+            verifications.setdefault(scope_name, {})[file_path] = gaps
+
+
+def _gather_coverage_gap_verifications(uid: str, target: Item,
+                                       verifications: dict[
+                                           str, _FileToSpotJustification],
+                                       may_be_covered: set[str]) -> None:
     for child in itertools.chain(target.parents("verification-by"),
                                  target.children("verification")):
         if not child.type.startswith("verification/code-coverage-gap"):
             continue
-        for scope_name, scope in child["areas"].items():
-            for file_path, file in scope.items():
-                logging.info(
-                    "%s: for target %s gather code coverage gap "
-                    "verifications from %s for file: %s", uid, target.uid,
-                    child.uid, file_path)
-                gaps: _SpotToJustification = {}
-                for line in file["lines"]:
-                    line_number = line["line"]
-                    logging.info(
-                        "%s: add line coverage gap justification at %s", uid,
-                        line_number)
-                    gaps[f"line/{line_number}"] = child.uid, line["md5"]
-                for branches in file["branches"]:
-                    line_number = branches["line"]
-                    for branch in branches["branches"]:
-                        line_branch = f"{line_number}/{branch}"
-                        logging.info(
-                            "%s: add branch coverage gap justification at %s",
-                            uid, line_branch)
-                        gaps[f"branch/{line_branch}"] = child.uid, branches[
-                            "md5"]
-                for function_name in file["functions"]:
-                    logging.info(
-                        "%s: add function coverage gap justification for %s()",
-                        uid, function_name)
-                    gaps[f"function/{function_name}"] = child.uid, ""
-                verifications.setdefault(scope_name, {})[file_path] = gaps
+        if child.get("may-be-covered", False):
+            may_be_covered.add(child.uid)
+        _gather_gap_areas(uid, target.uid, child, verifications)
 
 
 def _add_coverage_table(content: SphinxContent, mapper: BuildItemMapper,
@@ -258,6 +265,7 @@ class _CoverageSummary:
         self.test_aggregator = test_aggregator
         self.scope = coverage["scope"]
         self.verifications = copy.deepcopy(coverage["verifications"])
+        self._may_be_covered = set(coverage.get("may-be-covered", []))
         self.html_directory = coverage["html-directory"]
         self.limits_by_area = coverage["limits-by-area"]
         self._file_patterns = sorted(
@@ -488,10 +496,11 @@ class _CoverageSummary:
                 self.overall[f"{overall_scope}{key}"] += stats[key]
             self._add_coverage_status(stats, limits[f"{kind}-min-percent"],
                                       False, kind)
-        if spot_to_justification:
-            unrelated: list[str] = sorted(
-                set(justification[0]
-                    for justification in spot_to_justification.values()))
+        unrelated: list[str] = sorted(
+            set(justification[0]
+                for justification in spot_to_justification.values()) -
+            self._may_be_covered)
+        if unrelated:
             logging.warning(
                 "%s: for file %s there are unrelated "
                 "code coverage justifications: %s", self.test_aggregator.uid,
@@ -716,8 +725,10 @@ class TestAggregator(BuildItem):
                 target.item)
             coverage_gap_verifications: dict[str,
                                              _FileToSpotJustification] = {}
+            may_be_covered: set[str] = set()
             _gather_coverage_gap_verifications(self.uid, target.item,
-                                               coverage_gap_verifications)
+                                               coverage_gap_verifications,
+                                               may_be_covered)
             target_data = {
                 "configs": [],
                 "key": target_key,
@@ -726,7 +737,8 @@ class TestAggregator(BuildItem):
                 "name": CodeMapper(target.item).substitute(target["name"]),
                 "uid": target.uid,
                 "test-error-verifications": test_error_verifications,
-                "coverage-gap-verifications": coverage_gap_verifications
+                "coverage-gap-verifications": coverage_gap_verifications,
+                "coverage-gaps-may-be-covered": sorted(may_be_covered)
             }
             _set_limits_and_target_hash(target_data, target.item)
             logging.debug("%s: add target %s with hash %s", self.uid,
@@ -772,6 +784,8 @@ class TestAggregator(BuildItem):
                     "html")["directory"]
                 coverage_data["verifications"] = target_data[
                     "coverage-gap-verifications"].get(scope, {})
+                coverage_data["may-be-covered"] = target_data[
+                    "coverage-gaps-may-be-covered"]
                 coverage_data["not-run-groups"] = not_run_by_scope.get(
                     scope, [])
                 config_data.setdefault("coverage", []).append(coverage_data)

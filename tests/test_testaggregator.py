@@ -198,3 +198,93 @@ def test_limits_order():
                                               ("per-file", None),
                                               ("file-lib/*", None),
                                               ("file-lib/sub/a.c", None)]
+
+
+class _GapItem(dict):
+
+    def __init__(self, uid, file_path, may_be_covered):
+        super().__init__({
+            "areas": {
+                "Scope": {
+                    file_path: {
+                        "branches": [],
+                        "functions": [],
+                        "lines": [{
+                            "line": 10,
+                            "md5": "d0"
+                        }]
+                    }
+                }
+            }
+        })
+        if may_be_covered is not None:
+            self["may-be-covered"] = may_be_covered
+        self.uid = uid
+        self.type = "verification/code-coverage-gap"
+
+
+class _GapTarget:
+    uid = "/target/simulator"
+
+    def __init__(self, gaps):
+        self._gaps = gaps
+
+    def parents(self, _role):
+        return self._gaps
+
+    def children(self, _role):
+        return []
+
+
+def test_gather_gaps_which_may_be_covered():
+    verifications = {}
+    may_be_covered = set()
+    testaggregator._gather_coverage_gap_verifications(
+        "/pkg/aggregate",
+        _GapTarget([
+            _GapItem("/gap/a", "src/a.c", True),
+            _GapItem("/gap/b", "src/b.c", False),
+            _GapItem("/gap/c", "src/c.c", None)
+        ]), verifications, may_be_covered)
+    assert may_be_covered == {"/gap/a"}
+    assert verifications == {
+        "Scope": {
+            "src/a.c": {
+                "line/10": ("/gap/a", "d0")
+            },
+            "src/b.c": {
+                "line/10": ("/gap/b", "d0")
+            },
+            "src/c.c": {
+                "line/10": ("/gap/c", "d0")
+            }
+        }
+    }
+
+
+def test_covered_gap_which_may_be_covered():
+    limits_by_area = {"overall": _limits(0.0), "per-file": _limits(0.0)}
+    coverage = {
+        "files": [_file_coverage("src/a.c", 1),
+                  _file_coverage("src/b.c", 1)],
+        "html-directory": "html",
+        "limits-by-area": limits_by_area,
+        "may-be-covered": ["/gap/a"],
+        "scope": "Scope",
+        "target-uid": "/target/simulator",
+        "verifications": {
+            "src/a.c": {
+                "line/10": ("/gap/a", "d0")
+            },
+            "src/b.c": {
+                "line/10": ("/gap/b", "d0")
+            }
+        }
+    }
+    summary = testaggregator._CoverageSummary(_Aggregator(), coverage)
+    unrelated = summary.issues["Unrelated code coverage justifications"]
+    assert {subject.text.replace("\u200b", "")
+            for subject in unrelated} == {"spec:/gap/b"}
+    coverage["verifications"] = {"src/a.c": {"line/10": ("/gap/a", "d0")}}
+    summary = testaggregator._CoverageSummary(_Aggregator(), coverage)
+    assert "Unrelated code coverage justifications" not in summary.issues
