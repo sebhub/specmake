@@ -29,6 +29,8 @@ from types import SimpleNamespace
 
 from specitems import EmptyItem
 
+from specmake import augment_report
+
 from specmake.testaggregator import (TestAggregator, _judge,
                                      _update_measurement_status)
 from specmake.testanalysis import (ELF_NOTE, ConfigRef, Expectation,
@@ -394,3 +396,39 @@ def test_test_state_of_elf_note():
             "version": "v"
         }
     }) == "PASS"
+
+
+def _notes_build_output(report_hash):
+    return [
+        "*** BEGIN OF TEST TestsuitesValidation0 ***",
+        "A:TestsuitesValidation0", "S:Platform:RTEMS", "S:TargetHash:SHA256:h",
+        "B:RtemsValCase", "E:RtemsValCase:N:2:F:0:D:0.000100",
+        "Z:TestsuitesValidation0:C:1:N:2:F:0:D:0.000200",
+        f"Y:ReportHash:SHA256:{report_hash}", "",
+        "*** END OF TEST TestsuitesValidation0 ***"
+    ]
+
+
+def test_analysis_of_a_build_with_elf_notes():
+    probe = {}
+    augment_report(probe, _notes_build_output("x"))
+    report = {"elf-notes": dict(_NOTES)}
+    augment_report(
+        report,
+        _notes_build_output(probe["test-suite"]["report-hash-calculated"]))
+    assert "line-parser-error" not in report
+    analyser = _analyser({"RTEMS_DEBUG", "RTEMS_SMP"})
+    analyser.target_hashes = ["h"]
+    analyser.state = get_test_state(report)
+    assert analyser.state == "EXPECTED_PASS"
+    analyser.check_test_info(report)
+    analyser.check_test_suite({"report": report})
+    assert _failures(analyser) == []
+
+    # Without the notes, the missing lines are unexpected failures
+    del report["elf-notes"]
+    analyser = _analyser({"RTEMS_DEBUG", "RTEMS_SMP"})
+    analyser.target_hashes = ["h"]
+    analyser.check_test_info(report)
+    analyser.check_test_suite({"report": report})
+    assert "The BSP has not the expected name." in _failures(analyser)

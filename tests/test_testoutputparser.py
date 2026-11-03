@@ -654,7 +654,7 @@ def test_testoutputparser():
     }
     assert report == expected
 
-    report = _check("S:RTEMS_DEBUG:0", "?", 12, 12)
+    report = _check("S:RTEMS_DEBUG:0", "S:RTEMS_DEBUG:2", 12, 12)
     expected = _report(error=12, t_end=41)
     expected["test-suite"] = {
         "bsp": "xilinx_zynq_a9_qemu",
@@ -856,3 +856,41 @@ def test_testoutputparser():
     expected["test-suite"]["report-hash"] = "?"
     expected["test-suite"]["report-hash-calculated"] = "?"
     assert report == expected
+
+
+def test_output_of_a_build_with_elf_notes():
+    report = {}
+    augment_report(report, [
+        "*** BEGIN OF TEST TestsuitesUnitNoClock0 ***",
+        "A:TestsuitesUnitNoClock0", "S:Platform:RTEMS",
+        "S:TargetHash:SHA256:oqNHrlFi_jsico5ygHk-OcfeM9oaY3JMw_z6dmF09-U=",
+        "B:RtemsConfigUnitConfig",
+        "E:RtemsConfigUnitConfig:N:1:F:0:D:0.000291",
+        "Z:TestsuitesUnitNoClock0:C:1:N:1:F:0:D:0.000300",
+        "Y:ReportHash:SHA256:x", "",
+        "*** END OF TEST TestsuitesUnitNoClock0 ***"
+    ])
+    assert "line-parser-error" not in report
+    assert report["info"] == {
+        "line-begin-of-test": 0,
+        "line-end-of-test": 9,
+        "name": "TestsuitesUnitNoClock0"
+    }
+    suite = report["test-suite"]
+    assert suite["line-platform"] == 2
+    assert suite["line-target-hash"] == 3
+    assert suite["step-count"] == 1
+    assert [case["name"]
+            for case in suite["test-cases"]] == ["RtemsConfigUnitConfig"]
+    for key in ("compiler", "version", "bsp", "build-label", "rtems-debug",
+                "rtems-smp"):
+        assert key not in suite
+
+    # A missing target hash after the platform is still an error
+    report = {}
+    augment_report(report, [
+        "*** BEGIN OF TEST TestsuitesUnitNoClock0 ***",
+        "A:TestsuitesUnitNoClock0", "S:Platform:RTEMS",
+        "B:RtemsConfigUnitConfig"
+    ])
+    assert report["line-parser-error"] == 3

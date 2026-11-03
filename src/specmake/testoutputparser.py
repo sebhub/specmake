@@ -234,6 +234,10 @@ class TestOutputParser:
             self.data["test-suite"]["line-compiler"] = index
             self.consume = self._test_suite_version
             return True
+
+        # The ELF notes of the executable carry the build data
+        if _TS_TARGET_HASH.match(line):
+            return self._test_suite_target_hash(index, line)
         return self._error(index)
 
     def _test_suite_version(self, index: int, line: str) -> bool:
@@ -279,7 +283,12 @@ class TestOutputParser:
             self.data["test-suite"]["line-rtems-debug"] = index
             self.consume = self._test_suite_rtems_multiprocessing
             return True
-        return self._error(index)
+
+        # The ELF notes of the executable carry the build options
+        if line.startswith("S:"):
+            return self._error(index)
+        self.consume = self._test_suite_body
+        return self._test_suite_body(index, line)
 
     def _test_suite_rtems_multiprocessing(self, index: int, line: str) -> bool:
         mobj = _TS_RTEMS_MULTIPROCESSING.match(line)
