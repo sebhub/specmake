@@ -261,10 +261,12 @@ building the package and captures the output:
     assert ": missing end of test line" in log
     assert (f"executables: [RunnerExecutable(path='{build_bsp.directory}"
             "/a.exe', digest='z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg_SpIdNs6c5H0NE8"
-            "XYXysP-DGNKHfuwvY7kxvUdBeoGlODJ6-SfaPg==', timeout=180.0), "
+            "XYXysP-DGNKHfuwvY7kxvUdBeoGlODJ6-SfaPg==', timeout=180.0, "
+            "test_state=''), "
             f"RunnerExecutable(path='{build_bsp.directory}/b.exe', "
             "digest='hopqxuHQKT10-tB_bZWVKz4B09MVPbZ3p12Ad5g_1OMNtr_Im3YIqT-yZ"
-            "GkjOp8aCVctaHqcXaeLID6xUQQKFQ==', timeout=20.0)]") in log
+            "GkjOp8aCVctaHqcXaeLID6xUQQKFQ==', timeout=20.0, "
+            "test_state='')]") in log
     test_log = director["/pkg/test-logs/bsp"].json_load()
     failed_attempts = tuple(
         len(report.get("failed-attempts", []))

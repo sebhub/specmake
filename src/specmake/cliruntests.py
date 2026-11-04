@@ -41,7 +41,7 @@ from specitems import hash_file, is_enabled, load_data
 from .ctrf import (CTRF_FAILED, convert_test_log, ctrf_markdown_summary,
                    get_ctrf_tool_version)
 from .executablerecord import (ExecutableRecord, add_executable_record,
-                               find_report, index_reports,
+                               find_report, get_test_state_note, index_reports,
                                read_executable_record, reuse_report)
 from .runtests import (RunnerExecutable, RunnerReport, run_subprocess_tests,
                        run_tests_with_retries, select_command)
@@ -361,7 +361,8 @@ def _gather(
         else:
             executables.append(
                 RunnerExecutable(path, record.sha512,
-                                 _get_timeout(runner, timeouts, name)))
+                                 _get_timeout(runner, timeouts, name),
+                                 get_test_state_note(record)))
     if not reports and not executables:
         directories = ", ".join(f"'{path}'" for path in args.directories)
         raise RunTestsError(

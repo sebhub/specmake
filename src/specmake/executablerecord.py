@@ -34,8 +34,8 @@ from .elf import elf_loadable_sha512, elf_notes
 
 __all__ = [
     "ExecutableRecord", "REUSE_SCRIPT_FUNCTIONS", "RTEMS_NOTE_KEYS",
-    "add_executable_record", "find_report", "index_reports",
-    "read_executable_record", "reuse_report", "rtems_notes"
+    "add_executable_record", "find_report", "get_test_state_note",
+    "index_reports", "read_executable_record", "reuse_report", "rtems_notes"
 ]
 
 RTEMS_NOTE_KEYS = {
@@ -133,6 +133,17 @@ def find_report(index: dict, sha512: str,
         if report is not None:
             return report
     return index["file"].get(sha512, None)
+
+
+def get_test_state_note(record: ExecutableRecord) -> str:
+    """
+    Get the test state of the ELF note of the executable.
+
+    Without the note, the state is an empty string.
+    """
+    if record.elf_notes is None:
+        return ""
+    return str(record.elf_notes.get("test-state", "")).strip()
 
 
 def _set_record(report: dict[str, Any], record: ExecutableRecord) -> None:

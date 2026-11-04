@@ -88,7 +88,7 @@ def _output(name):
     if name == "hello.exe":
         return (["*** BEGIN OF TEST HELLO ***"] + _INFO +
                 ["Hello!", "*** END OF TEST HELLO ***"])
-    if name == "crash.exe":
+    if name in ("crash.exe", "xfail-crash.exe"):
         return (["*** BEGIN OF TEST CRASH ***"] + _INFO +
                 ["cpu 0 in error mode (tt = 0x80)"])
     if name == "hang.exe":

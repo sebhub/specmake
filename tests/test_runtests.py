@@ -25,9 +25,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import io
+import logging
 import sys
 
-from specmake.runtests import _run_executable, _StreamReader
+import pytest
+
+from specmake.runtests import (DISCARDED, RunnerExecutable, _run_executable,
+                               _StreamReader, run_tests_with_retries)
 
 
 def _read(data, limit):
@@ -60,3 +64,55 @@ def test_run_executable_with_large_standard_error():
     assert stderr == "e" * 4096
     assert stderr_size == 100000
     assert error is None
+
+
+def _crash_output(state):
+    return [
+        "*** BEGIN OF TEST CRASH ***", "*** TEST VERSION: 6",
+        f"*** TEST STATE: {state}", "cpu 0 in error mode"
+    ]
+
+
+def _run_with_retries(executable, output, extra=None):
+    runs = []
+
+    def run_tests(executables):
+        runs.append(executables)
+        return [{
+            "executable": exe.path,
+            "output": list(output),
+            **(extra or {})
+        } for exe in executables]
+
+    reports = run_tests_with_retries([executable], run_tests, 3, "uid")
+    assert len(reports) == 1
+    return len(runs), reports[0]
+
+
+@pytest.mark.parametrize("note_state, output_state, extra, run_count", [
+    ("EXPECTED_FAIL", "EXPECTED_PASS", {
+        "error": "timeout"
+    }, 1),
+    ("", "USER_INPUT", None, 1),
+    ("EXPECTED_FAIL", "EXPECTED_PASS", {
+        "error": f"{DISCARDED}lost"
+    }, 3),
+    ("EXPECTED_FAIL", "EXPECTED_PASS", {
+        "gcov-info-hash": "a",
+        "gcov-info-hash-calculated": "b"
+    }, 3),
+    ("INDETERMINATE", "EXPECTED_PASS", {
+        "error": "timeout"
+    }, 3),
+    ("EXPECTED_PASS", "EXPECTED_FAIL", None, 3),
+])
+def test_retry_of_an_expected_failure(caplog, note_state, output_state, extra,
+                                      run_count):
+    caplog.set_level(logging.INFO)
+    executable = RunnerExecutable("a.exe", "d", 1.0, note_state)
+    count, report = _run_with_retries(executable, _crash_output(output_state),
+                                      extra)
+    assert count == run_count
+    assert len(report.get("failed-attempts", [])) == run_count - 1
+    suppressed = "uid: executable 'a.exe': no retry due to expected failure"
+    assert (suppressed in caplog.text) == (run_count == 1)

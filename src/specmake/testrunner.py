@@ -37,7 +37,7 @@ from specitems import data_digest, is_enabled, Item, ItemGetValueContext
 
 from .directorystate import DirectoryState
 from .executablerecord import (ExecutableRecord, add_executable_record,
-                               find_report, index_reports,
+                               find_report, get_test_state_note, index_reports,
                                read_executable_record, reuse_report)
 from .pkgitems import BuildItem, PackageBuildDirector
 from .runtests import (RunnerExecutable, RunnerReport, run_subprocess_tests,
@@ -230,7 +230,9 @@ class TestRunner(BuildItem):
                     timeout = timeout_scaler * max(timeout, min_timeout)
                     logging.debug("%s: run with %.1fs timeout: %s", self.uid,
                                   timeout, path)
-                    executables.append(RunnerExecutable(path, digest, timeout))
+                    executables.append(
+                        RunnerExecutable(path, digest, timeout,
+                                         get_test_state_note(record)))
             else:
                 logging.info("%s: use previous report for: %s", self.uid, path)
                 reuse_report(report, record)

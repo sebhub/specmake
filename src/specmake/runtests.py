@@ -42,6 +42,12 @@ from .util import now_utc
 
 RunnerReport = dict[str, Any]
 
+# The prefix of the error of a run which matched a discard pattern
+DISCARDED = "discarded due to match with: "
+
+# A run of a test in one of these states gives the same result every time
+_NO_RETRY_STATES = frozenset(("EXPECTED_FAIL", "USER_INPUT"))
+
 
 def select_command(command: list,
                    is_enabled_condition: Callable[[Any], bool]) -> list:
@@ -71,6 +77,7 @@ class RunnerExecutable(NamedTuple):
     path: str
     digest: str
     timeout: float
+    test_state: str = ""
 
 
 class _Job:
@@ -174,8 +181,7 @@ def _worker(work_queue: queue.Queue, discard_patterns: list, uid: str) -> None:
             if is_enabled([Path(job.report["executable"]).name],
                           pattern["enabled-by"]) and re.search(
                               pattern["pattern"], stdout, re.DOTALL):
-                job.report["error"] = ("discarded due to "
-                                       f"match with: {pattern['pattern']}")
+                job.report["error"] = f"{DISCARDED}{pattern['pattern']}"
         output = stdout.rstrip().replace("\r\n", "\n").split("\n")
         job.report["output"] = output
         job.report["duration"] = time.monotonic() - begin
@@ -213,18 +219,29 @@ def run_subprocess_tests(executables: list[RunnerExecutable],
     return [job.report for job in jobs]
 
 
-def _must_retry(report: Optional[RunnerReport], path: str, uid: str) -> bool:
+def _get_test_state(report: RunnerReport, executable: RunnerExecutable) -> str:
+    if executable.test_state:
+        return executable.test_state
+    return report["info"].get("state", "").strip()
+
+
+def _must_retry(report: Optional[RunnerReport], executable: RunnerExecutable,
+                uid: str) -> bool:
+    path = executable.path
     if report is None:
         logging.warning("%s: executable '%s': no report", uid, path)
         return True
+    outcome_failed = False
     if "error" in report:
         logging.warning("%s: executable '%s': %s", uid, path, report["error"])
-        return True
-    if ("line-begin-of-test" in report["info"]
-            and "line-end-of-test" not in report["info"]):
+        if report["error"].startswith(DISCARDED):
+            return True
+        outcome_failed = True
+    elif ("line-begin-of-test" in report["info"]
+          and "line-end-of-test" not in report["info"]):
         logging.warning("%s: executable '%s': missing end of test line", uid,
                         path)
-        return True
+        outcome_failed = True
     if report.get("gcov-info-hash",
                   "") != report.get("gcov-info-hash-calculated", ""):
         logging.warning("%s: executable '%s': gcov info is corrupt", uid, path)
@@ -235,7 +252,12 @@ def _must_retry(report: Optional[RunnerReport], path: str, uid: str) -> bool:
         logging.warning("%s: executable '%s': test suite report is corrupt",
                         uid, path)
         return True
-    return False
+    if outcome_failed and _get_test_state(report,
+                                          executable) in _NO_RETRY_STATES:
+        logging.info("%s: executable '%s': no retry due to expected failure",
+                     uid, path)
+        return False
+    return outcome_failed
 
 
 def run_tests_with_retries(executables: list[RunnerExecutable],
@@ -259,9 +281,8 @@ def run_tests_with_retries(executables: list[RunnerExecutable],
                     "failed-attempts", []) + [previous_report]
             reports_by_path[new_report["executable"]] = new_report
         executables = [
-            executable for executable in executables
-            if _must_retry(reports_by_path.get(executable.path, None),
-                           executable.path, uid)
+            executable for executable in executables if _must_retry(
+                reports_by_path.get(executable.path, None), executable, uid)
         ]
         max_run_count -= 1
     return list(reports_by_path.values())

@@ -36,7 +36,13 @@ spec-info:
           runner reported an error such as a timeout, an exception, or a match
           with a discard pattern, if the test output contained a begin of test
           message but no end of test message, if the gcov information was
-          corrupt, or if the test suite report was corrupt.
+          corrupt, or if the test suite report was corrupt.  An executable run
+          with a test state of EXPECTED_FAIL or USER_INPUT is not retried if
+          the test runner reported an error other than a match with a discard
+          pattern or if the test output contained a begin of test message but
+          no end of test message.  The test state of the test-state ELF note
+          of the executable takes precedence over the test state of the test
+          output.
         spec-type: int
       min-timeout-in-seconds:
         description: |

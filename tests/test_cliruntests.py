@@ -25,6 +25,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import json
+import logging
 import os
 from pathlib import Path
 import sys
@@ -77,7 +78,7 @@ def _substitutions(path):
     return str(path)
 
 
-def _run(tmp_path, *extra):
+def _run(tmp_path, *extra, runner=_RUNNER):
     argv = [
         "specruntests",
         "--substitutions",
@@ -89,7 +90,7 @@ def _run(tmp_path, *extra):
         "--ctrf",
         str(tmp_path / "report.ctrf.json"),
         *extra,
-        _RUNNER,
+        runner,
         str(tmp_path / "tests"),
     ]
     return cliruntests(argv)
@@ -500,3 +501,27 @@ def test_a_broken_elf_file_is_an_error(tmp_path, capsys):
     assert _run(tmp_path) == 2
     assert "the ELF file is truncated in the ELF header" in capsys.readouterr(
     ).err
+
+
+def test_an_expected_failure_is_not_retried(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
+    runner = tmp_path / "runner.yml"
+    data = yaml.safe_load(Path(_RUNNER).read_text(encoding="utf-8"))
+    data["max-retry-count-per-executable"] = 2
+    runner.write_text(yaml.safe_dump(data), encoding="utf-8")
+    directory = tmp_path / "tests"
+    directory.mkdir(parents=True)
+    (directory / "crash.exe").write_text("crash", encoding="utf-8")
+    notes = [NoteSection([Note(b"RTEMS\0", 6, b"EXPECTED_FAIL\0")])]
+    (directory / "xfail-crash.exe").write_bytes(
+        build_elf(1,
+                  "<", [Segment(0x1000, 0x1000, b"text")],
+                  note_sections=notes))
+    _run(tmp_path, runner=str(runner))
+    reports = {
+        os.path.basename(report["executable"]): report
+        for report in _load(tmp_path / "test-log.json")["reports"]
+    }
+    assert len(reports["crash.exe"]["failed-attempts"]) == 2
+    assert "failed-attempts" not in reports["xfail-crash.exe"]
+    assert "xfail-crash.exe': no retry due to expected failure" in caplog.text
