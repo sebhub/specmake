@@ -32,8 +32,11 @@ spec-info:
         description: |
           It shall be the maximum count of retries per executable.  With a
           value of zero exactly one run per executable is performed.  An
-          executable run is retried if no report was produced, the gcov
-          information was corrupt, or the test suite report was corrupt.
+          executable run is retried if no report was produced, if the test
+          runner reported an error such as a timeout, an exception, or a match
+          with a discard pattern, if the test output contained a begin of test
+          message but no end of test message, if the gcov information was
+          corrupt, or if the test suite report was corrupt.
         spec-type: int
       min-timeout-in-seconds:
         description: |
